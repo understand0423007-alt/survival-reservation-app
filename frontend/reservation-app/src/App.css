@@ -1,0 +1,238 @@
+/* src/App.css */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #ffe8a3, #ffd1f3);
+}
+
+/* 全体ラッパー */
+.app {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 16px;
+}
+
+/* ヘッダー */
+.app-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #ff4f8b;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.app-subtitle {
+  margin-top: 4px;
+  color: #555;
+  font-size: 14px;
+}
+
+/* メイン2カラム */
+.calendar-container {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr;
+  gap: 16px;
+}
+
+/* カレンダー側 */
+.calendar-panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 16px rgba(255, 79, 139, 0.15);
+}
+
+/* 月切り替え */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nav-button {
+  border: none;
+  background: #ff9bd5;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(255, 155, 213, 0.5);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.nav-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(255, 155, 213, 0.7);
+}
+
+.month-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff4f8b;
+}
+
+/* 曜日 */
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.weekday-cell {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #777;
+}
+
+/* 日付グリッド */
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* 日付セル */
+.day-cell {
+  position: relative;
+  min-height: 70px;
+  border-radius: 12px;
+  border: none;
+  padding: 4px 4px 6px;
+  text-align: left;
+  background: #fff8fb;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+
+.day-cell.empty {
+  background: transparent;
+  cursor: default;
+  box-shadow: none;
+}
+
+.day-cell:hover:not(.empty) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 79, 139, 0.35);
+}
+
+.day-cell.has-reservation {
+  background: #ffeef7;
+}
+
+.day-cell.selected {
+  border: 2px solid #ff4f8b;
+}
+
+/* 日付の数字 */
+.day-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ff4f8b;
+  margin-bottom: 4px;
+}
+
+/* グループタグ（カレンダーの日付に表示） */
+.group-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.group-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: #ffcfec;
+  color: #5b265b;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-tag.more {
+  background: #ffe27a;
+}
+
+/* 右側の詳細パネル */
+.detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 16px rgba(255, 188, 87, 0.25);
+}
+
+.detail-title {
+  margin-top: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff8b24;
+}
+
+.detail-placeholder {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 予約リスト */
+.reservation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.reservation-item {
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #fff7e2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reservation-group {
+  font-weight: 700;
+  color: #ff4f8b;
+}
+
+.reservation-time {
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
+}
+
+/* スマホ対応 */
+@media (max-width: 768px) {
+  .calendar-container {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-panel,
+  .detail-panel {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  }
+}
