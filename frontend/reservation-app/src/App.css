@@ -1,5 +1,3 @@
-/* src/App.css */
-
 * {
   box-sizing: border-box;
 }
@@ -7,7 +5,8 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #ffe8a3, #ffd1f3);
+  background: radial-gradient(circle at top, #0b2818 0%, #020806 55%, #000000 100%);
+  color: #E5F7E0;
 }
 
 /* 全体ラッパー */
@@ -27,15 +26,20 @@ body {
   margin: 0;
   font-size: 28px;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  color: #ff4f8b;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8CFF4F; /* ネオングリーン */
+  text-shadow:
+    0 0 4px rgba(140, 255, 79, 0.9),
+    0 0 10px rgba(140, 255, 79, 0.6);
 }
 
 .app-subtitle {
-  margin-top: 4px;
-  color: #555;
-  font-size: 14px;
+  margin-top: 6px;
+  color: #9ABF8F;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* メイン2カラム */
@@ -45,12 +49,35 @@ body {
   gap: 16px;
 }
 
-/* カレンダー側 */
+/* カレンダー側パネル（レーダー画面っぽく） */
 .calendar-panel {
-  background: #fff;
+  background: rgba(4, 18, 12, 0.95);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 8px 16px rgba(255, 79, 139, 0.15);
+  box-shadow:
+    0 0 0 1px rgba(26, 73, 49, 0.9),
+    0 12px 24px rgba(0, 0, 0, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+
+/* HUDっぽい薄いグリッドライン（背景装飾） */
+.calendar-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(40, 88, 60, 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40, 88, 60, 0.25) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* 中身は上に重ねる */
+.calendar-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* 月切り替え */
@@ -62,27 +89,35 @@ body {
 }
 
 .nav-button {
-  border: none;
-  background: #ff9bd5;
-  color: #fff;
-  font-weight: bold;
-  border-radius: 999px;
-  width: 36px;
-  height: 36px;
+  border: 1px solid #2DD66B;
+  background: rgba(5, 36, 19, 0.9);
+  color: #8CFF4F;
+  font-weight: 700;
+  border-radius: 4px;
+  width: 40px;
+  height: 26px;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(255, 155, 213, 0.5);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  font-size: 14px;
+  box-shadow:
+    0 0 4px rgba(45, 214, 107, 0.9),
+    0 0 12px rgba(45, 214, 107, 0.4);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
 }
 
 .nav-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(255, 155, 213, 0.7);
+  background: rgba(10, 56, 30, 0.95);
+  box-shadow:
+    0 0 6px rgba(45, 214, 107, 1),
+    0 0 14px rgba(45, 214, 107, 0.7);
 }
 
 .month-label {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ff4f8b;
+  font-size: 16px;
+  font-weight: 600;
+  color: #C4F7B0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* 曜日 */
@@ -95,9 +130,10 @@ body {
 
 .weekday-cell {
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: #777;
+  color: #7BAF7E;
+  text-transform: uppercase;
 }
 
 /* 日付グリッド */
@@ -110,46 +146,63 @@ body {
 
 /* 日付セル */
 .day-cell {
+    width: 100%;           /* グリッドの幅に合わせる */
+  overflow: hidden;      /* 内容があふれても横に広がらない */
   position: relative;
-  min-height: 70px;
-  border-radius: 12px;
-  border: none;
-  padding: 4px 4px 6px;
+  min-height: 80px;
+  border-radius: 8px;
+  border: 1px solid #275139;
+  padding: 6px 6px 8px;
   text-align: left;
-  background: #fff8fb;
+  background: radial-gradient(circle at top left, #163323 0%, #07140E 60%, #050C08 100%);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .day-cell.empty {
   background: transparent;
+  border: none;
   cursor: default;
   box-shadow: none;
 }
 
 .day-cell:hover:not(.empty) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 79, 139, 0.35);
+  box-shadow:
+    0 0 6px rgba(24, 255, 130, 0.5),
+    0 0 18px rgba(24, 255, 130, 0.32);
+  border-color: #35E36E;
 }
 
+/* 予約ありの日を少し明るく＋枠を光らせる */
 .day-cell.has-reservation {
-  background: #ffeef7;
+  background: radial-gradient(circle at top, #1D3C29 0%, #06110B 70%);
+  border-color: #3EF68A;
+  box-shadow: 0 0 0 1px rgba(62, 246, 138, 0.35);
 }
 
+/* 選択中のセル：紫寄りではなくHUDグリーンのグロー */
 .day-cell.selected {
-  border: 2px solid #ff4f8b;
+  border: 2px solid #9CFF57;
+  box-shadow:
+    0 0 6px rgba(156, 255, 87, 0.9),
+    0 0 16px rgba(156, 255, 87, 0.7);
 }
 
 /* 日付の数字 */
 .day-number {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
-  color: #ff4f8b;
-  margin-bottom: 4px;
+  color: #EFFFF4;
+  margin-bottom: 6px;
 }
 
 /* グループタグ（カレンダーの日付に表示） */
@@ -163,37 +216,65 @@ body {
   padding: 2px 6px;
   border-radius: 999px;
   font-size: 10px;
-  background: #ffcfec;
-  color: #5b265b;
+  background: rgba(7, 41, 20, 0.9);
+  color: #CFFFE1;
   font-weight: 600;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: 1px solid rgba(80, 255, 140, 0.65);
+  box-shadow: 0 0 6px rgba(37, 184, 96, 0.6);
 }
 
 .group-tag.more {
-  background: #ffe27a;
+  background: rgba(36, 66, 40, 0.95);
+  border-color: rgba(199, 255, 107, 0.75);
 }
 
-/* 右側の詳細パネル */
+/* 右側の詳細パネル（ステータスモニター風） */
 .detail-panel {
-  background: #fff;
+  background: rgba(6, 20, 13, 0.96);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 8px 16px rgba(255, 188, 87, 0.25);
+  box-shadow:
+    0 0 0 1px rgba(32, 89, 58, 0.8),
+    0 12px 24px rgba(0, 0, 0, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+
+/* HUD風細い横線 */
+.detail-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    rgba(30, 90, 55, 0.18) 1px,
+    transparent 1px
+  );
+  background-size: 100% 18px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.detail-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .detail-title {
   margin-top: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  color: #ff8b24;
+  color: #7CFF5A;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .detail-placeholder {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: #A2C7A1;
 }
 
 /* 予約リスト */
@@ -206,23 +287,31 @@ body {
 }
 
 .reservation-item {
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 8px 10px;
-  background: #fff7e2;
+  background: rgba(5, 25, 14, 0.95);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border: 1px solid #29593A;
+  box-shadow: 0 0 6px rgba(24, 255, 130, 0.25);
 }
 
 .reservation-group {
   font-weight: 700;
-  color: #ff4f8b;
+  color: #DFFFEF;
 }
 
 .reservation-time {
   font-weight: 600;
-  font-size: 14px;
-  color: #555;
+  font-size: 13px;
+  color: #A9D9A7;
+}
+
+/* ナビボタンの周りに軽くラインを入れるとそれっぽい */
+.calendar-panel,
+.detail-panel {
+  backdrop-filter: blur(2px);
 }
 
 /* スマホ対応 */
@@ -233,6 +322,51 @@ body {
 
   .calendar-panel,
   .detail-panel {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 0 0 1px rgba(26, 73, 49, 0.7),
+      0 8px 18px rgba(0, 0, 0, 0.9);
   }
+}
+
+/* 詳細パネル下部のフッター（右下揃え） */
+.detail-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 予約ボタン（HUD風） */
+.reserve-button {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid #2DD66B;
+  background: rgba(5, 36, 19, 0.95);
+  color: #CFFFE1;
+  cursor: pointer;
+  box-shadow:
+    0 0 4px rgba(45, 214, 107, 0.9),
+    0 0 10px rgba(45, 214, 107, 0.4);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease,
+    opacity 0.1s ease;
+}
+
+.reserve-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(10, 56, 30, 0.98);
+  box-shadow:
+    0 0 6px rgba(45, 214, 107, 1),
+    0 0 14px rgba(45, 214, 107, 0.7);
+}
+
+.reserve-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
 }

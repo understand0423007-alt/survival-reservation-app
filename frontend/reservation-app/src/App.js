@@ -4,19 +4,22 @@ import "./App.css";
 // 仮の予約データ（あとでAPIやFirebaseとつなぐときに差し替え）
 const sampleReservations = {
   "2025-11-03": [
-    { id: 1, groupName: "Red Dragons", time: "10:00" },
-    { id: 2, groupName: "Blue Sharks", time: "11:00" },
-    { id: 3, groupName: "Green Tigers", time: "13:00" },
+    { id: 1, groupName: "Red team", time: "10:00" },
+    { id: 2, groupName: "Blue team", time: "11:00" },
+    { id: 3, groupName: "Green team", time: "13:00" },
   ],
   "2025-11-05": [{ id: 4, groupName: "Yellow Hawks", time: "09:00" }],
   "2025-11-10": [
     { id: 5, groupName: "Black Wolves", time: "14:00" },
     { id: 6, groupName: "White Rabbits", time: "15:00" },
   ],
+  "2025-11-11": [
+    { id: 7, groupName: "aaeaaieajoooooooooooo", time: "16:00"}
+  ]
 };
 
 function App() {
-  // JSX のときと同じ state ロジック
+  // state ロジック
   const [currentYear, setCurrentYear] = useState(2025);
   const [currentMonth, setCurrentMonth] = useState(10); // 0=Jan, 10=Nov
   const [selectedDate, setSelectedDate] = useState(null); // "YYYY-MM-DD"
@@ -75,6 +78,20 @@ function App() {
 
   const monthLabel = `${currentYear}年 ${currentMonth + 1}月`;
 
+  // 予約ボタンが押されたときの処理（ログイン画面へ遷移）
+  const handleReserveClick = () => {
+    if (!selectedDate) {
+      alert("日付を選択してください。");
+      return;
+    }
+
+    // 1. 選択した日付をログイン後に使いたければ、一時的に保存しておく
+    sessionStorage.setItem("reserveDate", selectedDate);
+
+    // 2. ログイン画面（/login）へ遷移
+    window.location.href = "/login";
+  };
+
   // 右側パネルの中身（条件分岐部分）を先に組み立てる
   let detailContent;
   if (selectedDate == null) {
@@ -104,7 +121,7 @@ function App() {
     );
   }
 
-  // ここが JSX でいう return ( <div>... ) に相当
+  // return ( <div>... ) に相当
   return h(
     "div",
     { className: "app" },
@@ -112,11 +129,11 @@ function App() {
     h(
       "header",
       { className: "app-header" },
-      h("h1", { className: "app-title" }, "大会予約カレンダー"),
+      h("h1", { className: "app-title" }, "CQB GHOST"),
       h(
         "p",
         { className: "app-subtitle" },
-        "参加グループの予約状況を一目でチェック！"
+        "Fukusaski 福崎店"
       )
     ),
 
@@ -231,7 +248,21 @@ function App() {
         "div",
         { className: "detail-panel" },
         h("h2", { className: "detail-title" }, "選択した日の予約"),
-        detailContent
+        detailContent,
+        // 右下に「予約する」ボタン
+        h(
+          "div",
+          { className: "detail-footer" },
+          h(
+            "button",
+            {
+              className: "reserve-button",
+              onClick: handleReserveClick,
+              disabled: !selectedDate, // 日付が未選択のときは押せないように
+            },
+            "予約する"
+          )
+        )
       )
     )
   );
