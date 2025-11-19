@@ -241,7 +241,8 @@ body {
     0 0 0 1px rgba(32, 89, 58, 0.8),
     0 12px 24px rgba(0, 0, 0, 0.9);
   position: relative;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;  /* タイトル／内容／ボタンを縦に並べる */
 }
 
 /* HUD風細い横線 */
@@ -330,9 +331,10 @@ body {
 
 /* 詳細パネル下部のフッター（右下揃え） */
 .detail-footer {
-  margin-top: 16px;
+  margin-top: auto;           /* ★ これで下に張り付く */
+  padding-top: 16px;          /* 上と少し間隔を空ける */
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-end;  /* 右寄せ */
 }
 
 /* 予約ボタン（HUD風） */
@@ -369,4 +371,47 @@ body {
   opacity: 0.4;
   cursor: default;
   box-shadow: none;
+}
+
+/* 背景画像 */
+.bg-slide-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  opacity: 0.15;               /* 初期表示時の透け具合（JSで上書きされる） */
+  pointer-events: none;
+  z-index: -1;                 /* 背景として後ろに配置 */
+  transition: opacity 1s ease-in-out;  /* ★ これでフェードIN/OUT */
+}
+
+/* 背景にわずかな動きをつける（HUDゆらぎ） */
+.bg-slide-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: -1;
+
+  /* ★ ゆっくり揺らすアニメーション */
+  animation: slight-move 10s ease-in-out infinite alternate;
+}
+
+/* わずかに揺らすアニメーション */
+@keyframes slight-move {
+  0% {
+    transform: translate(5px, 5px) scale(1.02);
+  }
+  50% {
+    transform: translate(12px, -8px) scale(1.03);
+  }
+  100% {
+    transform: translate(-10px, 10px) scale(1.02);
+  }
 }
