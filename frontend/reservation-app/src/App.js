@@ -8,32 +8,23 @@ import {
 import {
   collection,
   addDoc,
-  query,
-  where,
   getDocs,
   serverTimestamp,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
-
-// 仮の予約データ（あとでAPIやFirebaseとつなぐときに差し替え）
-const sampleReservations = {
-  "2025-11-03": [
-    { id: 1, groupName: "Red team", time: "10:00" },
-    { id: 2, groupName: "Blue team", time: "11:00" },
-    { id: 3, groupName: "Green team", time: "13:00" },
-  ],
-  "2025-11-05": [{ id: 4, groupName: "Yellow Hawks", time: "09:00" }],
-  "2025-11-10": [
-    { id: 5, groupName: "Black Wolves", time: "14:00" },
-    { id: 6, groupName: "White Rabbits", time: "15:00" },
-  ],
-  "2025-11-11": [{ id: 7, groupName: "aaeaaieajoooooooooooo", time: "16:00" }],
-};
 
 function App() {
   // state ロジック
   const [currentYear, setCurrentYear] = useState(2025);
   const [currentMonth, setCurrentMonth] = useState(10); // 0=Jan, 10=Nov
   const [selectedDate, setSelectedDate] = useState(null); // "YYYY-MM-DD"
+
+  // 管理者画面用：予約一覧
+  const [adminReservations, setAdminReservations] = useState([]);
+
+  // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time }, ...] }
+  const [reservationsByDate, setReservationsByDate] = useState({});
 
   // 画像リスト（public/images 配下に置く想定）
   const images = [
@@ -53,6 +44,7 @@ function App() {
   const isLoginPage = window.location.pathname === "/login";
   const isSignupPage = window.location.pathname === "/signup";
   const isReservePage = window.location.pathname === "/reserve";
+  const isAdminPage = window.location.pathname === "/admin";
 
   // 予約フォーム → 確認画面のステップ管理
   const [reserveStep, setReserveStep] = useState("form"); // "form" or "confirm"
@@ -124,7 +116,11 @@ function App() {
       window.location.href = "/login";
     } catch (error) {
       console.error("新規登録エラー:", error);
-      alert("登録に失敗しました: " + error.message);
+      if (error.code === "auth/weak-password") {
+        alert("パスワードは6文字以上にしてください。");
+      } else {
+        alert("登録に失敗しました: " + error.message);
+      }
     }
   };
 
@@ -152,27 +148,15 @@ function App() {
   // 確認画面で「この内容で予約する」が押されたとき
   const handleConfirmReservation = async () => {
     if (!reserveData) return;
-  
+
     const { name, email, groupName, date, time } = reserveData;
-  
+
     try {
-      // ① 同一日時の重複チェック
       const reservationsRef = collection(db, "reservations");
-      const q = query(
-        reservationsRef,
-        where("date", "==", date),
-        where("time", "==", time)
-      );
-      const snapshot = await getDocs(q);
-  
-      if (!snapshot.empty) {
-        alert("その日時にはすでに予約が入っています。別の時間を選んでください。");
-        return;
-      }
-  
-      // ② 予約データを Firestore に保存
+
+      // ★ 重複チェックは行わず、そのまま追加する
       const user = auth.currentUser;
-      await addDoc(reservationsRef, {
+      const docRef = await addDoc(reservationsRef, {
         name,
         email,
         team: groupName,
@@ -181,12 +165,28 @@ function App() {
         userId: user ? user.uid : null,
         createdAt: serverTimestamp(),
       });
-  
+
+      // カレンダー表示用の state にも反映
+      setReservationsByDate((prev) => {
+        const prevList = prev[date] || [];
+        return {
+          ...prev,
+          [date]: [
+            ...prevList,
+            {
+              id: docRef.id,
+              groupName: groupName,
+              time: time,
+            },
+          ],
+        };
+      });
+
       alert(
         `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
       );
-  
-      // ③ 後片付け
+
+      // 後片付け
       sessionStorage.removeItem("reserveDate");
       setReserveData(null);
       setReserveStep("form");
@@ -194,6 +194,34 @@ function App() {
     } catch (error) {
       console.error("予約登録エラー:", error);
       alert("予約の登録に失敗しました: " + error.message);
+    }
+  };
+
+  // 管理者画面：予約削除
+  const handleDeleteReservation = async (id) => {
+    const ok = window.confirm("この予約を削除してよろしいですか？");
+    if (!ok) return;
+
+    try {
+      await deleteDoc(doc(db, "reservations", id));
+
+      // 管理画面の一覧から削除
+      setAdminReservations((prev) => prev.filter((r) => r.id !== id));
+
+      // カレンダー表示用のデータからも削除
+      setReservationsByDate((prev) => {
+        const newMap = { ...prev };
+        for (const date in newMap) {
+          newMap[date] = newMap[date].filter((r) => r.id !== id);
+          if (newMap[date].length === 0) {
+            delete newMap[date];
+          }
+        }
+        return newMap;
+      });
+    } catch (error) {
+      console.error("予約削除エラー:", error);
+      alert("予約の削除に失敗しました: " + error.message);
     }
   };
 
@@ -245,7 +273,7 @@ function App() {
   };
 
   const getReservationsForDate = (dateKey) => {
-    return sampleReservations[dateKey] || [];
+    return reservationsByDate[dateKey] || [];
   };
 
   const selectedReservations =
@@ -295,6 +323,75 @@ function App() {
     return () => clearInterval(intervalId);
   }, [images.length]);
 
+  // 管理者画面用：予約一覧を取得
+  useEffect(() => {
+    if (!isAdminPage) return; // /admin のときだけ動かす
+
+    const fetchAdminReservations = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "reservations"));
+
+        const list = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: data.name,
+            email: data.email,
+            team: data.team,
+            date: data.date,
+            time: data.time,
+          };
+        });
+
+        // 日付 → 時間 の順に並び替え（文字列としてOK）
+        list.sort(
+          (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+        );
+
+        setAdminReservations(list);
+      } catch (error) {
+        console.error("管理者予約一覧取得エラー:", error);
+      }
+    };
+
+    fetchAdminReservations();
+  }, [isAdminPage]);
+
+  // Firestore から予約一覧を読み込む（カレンダー表示用）
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        const reservationsRef = collection(db, "reservations");
+        const snapshot = await getDocs(reservationsRef);
+
+        const map = {};
+
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const date = data.date; // "YYYY-MM-DD"
+          const team = data.team; // チーム名
+          const time = data.time; // "HH:MM"
+
+          if (!map[date]) {
+            map[date] = [];
+          }
+
+          map[date].push({
+            id: docSnap.id,
+            groupName: team,
+            time: time,
+          });
+        });
+
+        setReservationsByDate(map);
+      } catch (error) {
+        console.error("予約データ取得エラー:", error);
+      }
+    };
+
+    fetchReservations();
+  }, []);
+
   // 予約フォームで使う日付（あれば初期値として表示）
   const reservedDate = sessionStorage.getItem("reserveDate") || "";
 
@@ -327,7 +424,7 @@ function App() {
     );
   }
 
-  // ★ ここで「ログイン / 新規登録 / 予約フォーム / カレンダー」を分ける
+  // ★ ここで「ログイン / 新規登録 / 予約フォーム / 管理画面 / カレンダー」を分ける
   let mainContent;
 
   if (isLoginPage) {
@@ -721,6 +818,109 @@ function App() {
         )
       );
     }
+  } else if (isAdminPage) {
+    // ★ 管理者用：予約一覧画面
+    mainContent = h(
+      "div",
+      { className: "app" },
+      h(
+        "div",
+        { className: "login-page" },
+        h(
+          "div",
+          { className: "login-card" },
+          h("h1", { className: "login-title" }, "予約一覧（管理者）"),
+          h(
+            "p",
+            { className: "login-subtitle" },
+            "予約一覧を確認・削除できます"
+          ),
+
+          // 一覧テーブル
+          h(
+            "div",
+            { style: { maxHeight: "400px", overflowY: "auto" } },
+            h(
+              "table",
+              {
+                style: {
+                  width: "100%",
+                  fontSize: "12px",
+                  borderCollapse: "collapse",
+                },
+              },
+              // ヘッダー
+              h(
+                "thead",
+                null,
+                h(
+                  "tr",
+                  null,
+                  ["名前", "メール", "チーム名", "日付", "時間", "操作"].map(
+                    (label) =>
+                      h(
+                        "th",
+                        {
+                          key: label,
+                          style: {
+                            borderBottom: "1px solid #29593A",
+                            padding: "4px 6px",
+                            textAlign: "left",
+                            color: "#A9D9A7",
+                          },
+                        },
+                        label
+                      )
+                  )
+                )
+              ),
+              // 本体
+              h(
+                "tbody",
+                null,
+                adminReservations.map((r) =>
+                  h(
+                    "tr",
+                    { key: r.id },
+                    h("td", { style: { padding: "4px 6px" } }, r.name),
+                    h("td", { style: { padding: "4px 6px" } }, r.email),
+                    h("td", { style: { padding: "4px 6px" } }, r.team),
+                    h("td", { style: { padding: "4px 6px" } }, r.date),
+                    h("td", { style: { padding: "4px 6px" } }, r.time),
+                    h(
+                      "td",
+                      { style: { padding: "4px 6px" } },
+                      h(
+                        "button",
+                        {
+                          className: "reserve-edit-button",
+                          type: "button",
+                          onClick: () => handleDeleteReservation(r.id),
+                        },
+                        "削除"
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          ),
+
+          // カレンダーへ戻るボタン
+          h(
+            "button",
+            {
+              type: "button",
+              className: "login-back-button",
+              onClick: () => {
+                window.location.href = "/";
+              },
+            },
+            "← カレンダーに戻る"
+          )
+        )
+      )
+    );
   } else {
     // カレンダー画面のUI
     mainContent = h(
@@ -881,7 +1081,7 @@ function App() {
       alt: "background slide",
     }),
 
-    // メインコンテンツ（ログイン / 新規登録 / 予約フォーム / カレンダー）
+    // メインコンテンツ（ログイン / 新規登録 / 予約フォーム / 管理画面 / カレンダー）
     mainContent
   );
 }
