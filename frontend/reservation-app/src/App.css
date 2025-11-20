@@ -573,3 +573,86 @@ body {
     0 0 14px rgba(70, 220, 255, 0.7);
 }
 
+/* 予約確認サマリー */
+.reserve-summary {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(4, 24, 14, 0.95);
+  border: 1px solid #29593a;
+}
+
+.reserve-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.reserve-summary-label {
+  color: #a9d9a7;
+}
+
+.reserve-summary-value {
+  color: #e5f7e0;
+  font-weight: 600;
+}
+
+/* 確認画面のボタンエリア */
+.reserve-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* 修正ボタン */
+.reserve-edit-button {
+  padding: 7px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(80, 255, 140, 0.3);
+  background: transparent;
+  color: #9abf8f;
+  cursor: pointer;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.reserve-edit-button:hover {
+  background: rgba(5, 25, 14, 0.9);
+  border-color: rgba(80, 255, 140, 0.7);
+  color: #cfffe1;
+}
+
+/* 最終確定ボタン */
+.reserve-confirm-button {
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  border: 1px solid #2dd66b;
+  background: rgba(5, 36, 19, 0.95);
+  color: #cfffe1;
+  cursor: pointer;
+  box-shadow:
+    0 0 4px rgba(45, 214, 107, 0.9),
+    0 0 10px rgba(45, 214, 107, 0.4);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease;
+}
+
+.reserve-confirm-button:hover {
+  transform: translateY(-1px);
+  background: rgba(10, 56, 30, 0.98);
+  box-shadow:
+    0 0 6px rgba(45, 214, 107, 1),
+    0 0 14px rgba(45, 214, 107, 0.7);
+}

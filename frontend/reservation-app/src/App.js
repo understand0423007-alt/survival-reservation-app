@@ -41,6 +41,10 @@ function App() {
   const isSignupPage = window.location.pathname === "/signup";
   const isReservePage = window.location.pathname === "/reserve";
 
+  // 予約フォーム → 確認画面のステップ管理
+  const [reserveStep, setReserveStep] = useState("form"); // "form" or "confirm"
+  const [reserveData, setReserveData] = useState(null); // { name, email, groupName, date, time }
+
   // ログインフォーム送信時の処理（仮）
   const handleLoginSubmit = (event) => {
     event.preventDefault();
@@ -89,7 +93,7 @@ function App() {
     window.location.href = "/login";
   };
 
-  // 予約フォーム送信時の処理（仮）
+  // 予約フォーム送信時の処理（確認画面へ進む）
   const handleReservationSubmit = (event) => {
     event.preventDefault();
     const form = event.target;
@@ -105,8 +109,19 @@ function App() {
       return;
     }
 
+    // 入力内容を state に保存して確認画面へ
+    setReserveData({ name, email, groupName, date, time });
+    setReserveStep("confirm");
+  };
+
+  // 確認画面で「この内容で予約する」が押されたとき
+  const handleConfirmReservation = () => {
+    if (!reserveData) return;
+
+    const { name, email, groupName, date, time } = reserveData;
+
     // TODO: ここで実際の予約APIに送る
-    console.log("予約データ:", { name, email, groupName, date, time });
+    console.log("予約データ（確定）:", reserveData);
 
     alert(
       `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
@@ -115,8 +130,17 @@ function App() {
     // 使い終わった日付をクリア
     sessionStorage.removeItem("reserveDate");
 
+    // 予約ステップをリセット
+    setReserveData(null);
+    setReserveStep("form");
+
     // カレンダーに戻る
     window.location.href = "/";
+  };
+
+  // 確認画面で「内容を修正する」が押されたとき
+  const handleBackToReservationForm = () => {
+    setReserveStep("form");
   };
 
   const calendarDays = useMemo(() => {
@@ -292,8 +316,8 @@ function App() {
             ),
             h(
               "button",
-                { className: "login-button", type: "submit" },
-                "ログイン"
+              { className: "login-button", type: "submit" },
+              "ログイン"
             )
           ),
           // 新規登録へ
@@ -401,111 +425,242 @@ function App() {
       )
     );
   } else if (isReservePage) {
-    // 予約フォーム画面
-    mainContent = h(
-      "div",
-      { className: "app" },
-      h(
+    // 予約フォーム画面 or 確認画面
+    // フォームで使う初期値（戻ってきた時は reserveData を優先）
+    const initialName = reserveData ? reserveData.name : "";
+    const initialEmail = reserveData ? reserveData.email : "";
+    const initialGroupName = reserveData ? reserveData.groupName : "";
+    const initialDate = reserveData ? reserveData.date : reservedDate; // カレンダーで選んだ日付
+    const initialTime = reserveData ? reserveData.time : "";
+
+    if (reserveStep === "confirm" && reserveData) {
+      // ★ 確認画面UI
+      mainContent = h(
         "div",
-        { className: "login-page" },
+        { className: "app" },
         h(
           "div",
-          { className: "login-card" },
-          h("h1", { className: "login-title" }, "予約フォーム"),
+          { className: "login-page" },
           h(
-            "p",
-            { className: "login-subtitle" },
-            "以下の内容を入力して予約を確定してください"
-          ),
-          h(
-            "form",
-            { className: "login-form", onSubmit: handleReservationSubmit },
-            // 名前
+            "div",
+            { className: "login-card" },
+            h("h1", { className: "login-title" }, "予約内容の確認"),
             h(
-              "label",
-              { className: "login-label" },
-              "名前",
-              h("input", {
-                className: "login-input",
-                type: "text",
-                name: "name",
-                placeholder: "例）山田 太郎",
-                required: true,
-              })
+              "p",
+              { className: "login-subtitle" },
+              "以下の内容で予約してよろしいですか？"
             ),
-            // メールアドレス
+
+            // 内容一覧
             h(
-              "label",
-              { className: "login-label" },
-              "メールアドレス",
-              h("input", {
-                className: "login-input",
-                type: "email",
-                name: "email",
-                placeholder: "you@example.com",
-                required: true,
-              })
+              "div",
+              { className: "reserve-summary" },
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "名前"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.name
+                )
+              ),
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "メール"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.email
+                )
+              ),
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h(
+                  "span",
+                  { className: "reserve-summary-label" },
+                  "参加チーム名"
+                ),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.groupName
+                )
+              ),
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "日付"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.date
+                )
+              ),
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "時間"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.time
+                )
+              )
             ),
-            // 参加チーム名
+
+            // ボタン2つ
             h(
-              "label",
-              { className: "login-label" },
-              "参加チーム名",
-              h("input", {
-                className: "login-input",
-                type: "text",
-                name: "groupName",
-                placeholder: "例）Red team",
-                required: true,
-              })
+              "div",
+              { className: "reserve-actions" },
+              h(
+                "button",
+                {
+                  type: "button",
+                  className: "reserve-edit-button",
+                  onClick: handleBackToReservationForm,
+                },
+                "内容を修正する"
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  className: "reserve-confirm-button",
+                  onClick: handleConfirmReservation,
+                },
+                "この内容で予約する"
+              )
             ),
-            // 日付
-            h(
-              "label",
-              { className: "login-label" },
-              "日付",
-              h("input", {
-                className: "login-input",
-                type: "date",
-                name: "date",
-                defaultValue: reservedDate,
-                required: true,
-              })
-            ),
-            // 時間
-            h(
-              "label",
-              { className: "login-label" },
-              "時間",
-              h("input", {
-                className: "login-input",
-                type: "time",
-                name: "time",
-                required: true,
-              })
-            ),
-            // 予約確定ボタン
+
+            // カレンダーに戻る（確認画面からでも戻れるように）
             h(
               "button",
-              { className: "login-button", type: "submit" },
-              "予約を確定する"
-            )
-          ),
-          // カレンダーに戻る
-          h(
-            "button",
-            {
-              type: "button",
-              className: "login-back-button",
-              onClick: () => {
-                window.location.href = "/";
+              {
+                type: "button",
+                className: "login-back-button",
+                onClick: () => {
+                  window.location.href = "/";
+                },
               },
-            },
-            "← カレンダーに戻る"
+              "← カレンダーに戻る"
+            )
           )
         )
-      )
-    );
+      );
+    } else {
+      // ★ 入力用フォーム画面
+      mainContent = h(
+        "div",
+        { className: "app" },
+        h(
+          "div",
+          { className: "login-page" },
+          h(
+            "div",
+            { className: "login-card" },
+            h("h1", { className: "login-title" }, "予約フォーム"),
+            h(
+              "p",
+              { className: "login-subtitle" },
+              "以下の内容を入力して予約内容を確認してください"
+            ),
+            h(
+              "form",
+              { className: "login-form", onSubmit: handleReservationSubmit },
+              // 名前
+              h(
+                "label",
+                { className: "login-label" },
+                "名前",
+                h("input", {
+                  className: "login-input",
+                  type: "text",
+                  name: "name",
+                  placeholder: "例）山田 太郎",
+                  defaultValue: initialName,
+                  required: true,
+                })
+              ),
+              // メールアドレス
+              h(
+                "label",
+                { className: "login-label" },
+                "メールアドレス",
+                h("input", {
+                  className: "login-input",
+                  type: "email",
+                  name: "email",
+                  placeholder: "you@example.com",
+                  defaultValue: initialEmail,
+                  required: true,
+                })
+              ),
+              // 参加チーム名
+              h(
+                "label",
+                { className: "login-label" },
+                "参加チーム名",
+                h("input", {
+                  className: "login-input",
+                  type: "text",
+                  name: "groupName",
+                  placeholder: "例）Red team",
+                  defaultValue: initialGroupName,
+                  required: true,
+                })
+              ),
+              // 日付
+              h(
+                "label",
+                { className: "login-label" },
+                "日付",
+                h("input", {
+                  className: "login-input",
+                  type: "date",
+                  name: "date",
+                  defaultValue: initialDate,
+                  required: true,
+                })
+              ),
+              // 時間
+              h(
+                "label",
+                { className: "login-label" },
+                "時間",
+                h("input", {
+                  className: "login-input",
+                  type: "time",
+                  name: "time",
+                  defaultValue: initialTime,
+                  required: true,
+                })
+              ),
+              // 予約内容確認ボタン
+              h(
+                "button",
+                { className: "login-button", type: "submit" },
+                "予約内容を確認する"
+              )
+            ),
+            // カレンダーに戻る
+            h(
+              "button",
+              {
+                type: "button",
+                className: "login-back-button",
+                onClick: () => {
+                  window.location.href = "/";
+                },
+              },
+              "← カレンダーに戻る"
+            )
+          )
+        )
+      );
+    }
   } else {
     // カレンダー画面のUI
     mainContent = h(
@@ -630,7 +785,7 @@ function App() {
         h(
           "div",
           { className: "detail-panel" },
-          h("h2", { className: "detail-title" }, "選択した日の予約"),
+          h("h2", { className: "detail-title" }, "参加予定チーム"),
           detailContent,
           // 右下に「予約する」ボタン
           h(
