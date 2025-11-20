@@ -13,9 +13,7 @@ const sampleReservations = {
     { id: 5, groupName: "Black Wolves", time: "14:00" },
     { id: 6, groupName: "White Rabbits", time: "15:00" },
   ],
-  "2025-11-11": [
-    { id: 7, groupName: "aaeaaieajoooooooooooo", time: "16:00" }
-  ]
+  "2025-11-11": [{ id: 7, groupName: "aaeaaieajoooooooooooo", time: "16:00" }],
 };
 
 function App() {
@@ -23,7 +21,7 @@ function App() {
   const [currentYear, setCurrentYear] = useState(2025);
   const [currentMonth, setCurrentMonth] = useState(10); // 0=Jan, 10=Nov
   const [selectedDate, setSelectedDate] = useState(null); // "YYYY-MM-DD"
-  
+
   // 画像リスト（public/images 配下に置く想定）
   const images = [
     "/images/field1.png",
@@ -37,9 +35,11 @@ function App() {
 
   // React.createElement を短く書くためのエイリアス
   const h = React.createElement;
-  
-  // ログイン画面かどうか
+
+  // 画面種別
   const isLoginPage = window.location.pathname === "/login";
+  const isSignupPage = window.location.pathname === "/signup";
+  const isReservePage = window.location.pathname === "/reserve";
 
   // ログインフォーム送信時の処理（仮）
   const handleLoginSubmit = (event) => {
@@ -54,9 +54,68 @@ function App() {
       return;
     }
 
+    // ここで reserveDate を読む例（何かに使いたいとき）
+    const reservedDate = sessionStorage.getItem("reserveDate");
+    console.log("ログイン後に使う日付: ", reservedDate);
+
     alert("仮ログイン完了: " + email + " でログインしました。");
 
-    // ログイン完了後はカレンダーに戻す例
+    // ログイン完了後は予約フォームへ
+    window.location.href = "/reserve";
+  };
+
+  // 新規登録フォーム送信時の処理（仮）
+  const handleSignupSubmit = (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.elements.email.value;
+    const password = form.elements.password.value;
+    const confirm = form.elements.confirm.value;
+
+    if (!email || !password || !confirm) {
+      alert("すべての項目を入力してください。");
+      return;
+    }
+
+    if (password !== confirm) {
+      alert("パスワードが一致しません。");
+      return;
+    }
+
+    // TODO: 実際はここでAPIにユーザー作成リクエストを送る
+    alert("仮登録が完了しました: " + email);
+
+    // 登録完了後はログイン画面へ
+    window.location.href = "/login";
+  };
+
+  // 予約フォーム送信時の処理（仮）
+  const handleReservationSubmit = (event) => {
+    event.preventDefault();
+    const form = event.target;
+
+    const name = form.elements.name.value;
+    const email = form.elements.email.value;
+    const groupName = form.elements.groupName.value;
+    const date = form.elements.date.value;
+    const time = form.elements.time.value;
+
+    if (!name || !email || !groupName || !date || !time) {
+      alert("すべての項目を入力してください。");
+      return;
+    }
+
+    // TODO: ここで実際の予約APIに送る
+    console.log("予約データ:", { name, email, groupName, date, time });
+
+    alert(
+      `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
+    );
+
+    // 使い終わった日付をクリア
+    sessionStorage.removeItem("reserveDate");
+
+    // カレンダーに戻る
     window.location.href = "/";
   };
 
@@ -118,7 +177,7 @@ function App() {
       return;
     }
 
-    // 1. 選択した日付をログイン後に使いたければ、一時的に保存しておく
+    // 1. 選択した日付をログイン後・予約フォームで使うため保存
     sessionStorage.setItem("reserveDate", selectedDate);
 
     // 2. ログイン画面（/login）へ遷移
@@ -129,21 +188,16 @@ function App() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   // フェード用：true = 表示中 / false = フェードアウト中
   const [isVisible, setIsVisible] = useState(true);
-  
+
   useEffect(() => {
-    // 何秒ごとに画像を切り替えるか（ここでは8秒）
-    const intervalMs = 8000;
-    // フェードの長さ（CSSのtransitionと合わせる）ここでは1秒
-    const fadeMs = 1000;
-  
+    const intervalMs = 8000; // 何秒ごとに画像を切り替えるか
+    const fadeMs = 1000; // フェード時間
+
     const intervalId = setInterval(() => {
-      // ① まずフェードアウト
-      setIsVisible(false);
-  
-      // ② フェードアウト完了後に画像変更 → 再びフェードイン
+      setIsVisible(false); // ① まずフェードアウト
+
       setTimeout(() => {
         setCurrentImageIndex((prev) => {
-          // 別の画像にランダム変更（前と同じになりにくくする）
           let next = Math.floor(Math.random() * images.length);
           if (images.length > 1 && next === prev) {
             next = (next + 1) % images.length;
@@ -153,12 +207,14 @@ function App() {
         setIsVisible(true); // フェードイン
       }, fadeMs);
     }, intervalMs);
-  
-    // クリーンアップ
+
     return () => clearInterval(intervalId);
   }, [images.length]);
 
-  // 右側パネルの中身（条件分岐部分）を先に組み立てる
+  // 予約フォームで使う日付（あれば初期値として表示）
+  const reservedDate = sessionStorage.getItem("reserveDate") || "";
+
+  // 右側パネルの中身（カレンダー画面用）
   let detailContent;
   if (selectedDate == null) {
     detailContent = h(
@@ -187,23 +243,272 @@ function App() {
     );
   }
 
-  // ★ ここが UI 全体（背景 + 既存UI） ★
-  return h(
-    "div",
-    { className: "app-root app" }, // ラッパー（必要ならCSSで調整）
+  // ★ ここで「ログイン / 新規登録 / 予約フォーム / カレンダー」を分ける
+  let mainContent;
 
-    // 🔥 最背面の背景画像（position: fixed + z-index: -1 で後ろに）
-    h("img", {
-      src: images[currentImageIndex],
-      className: "bg-slide-image",
-      style: {
-        opacity: isVisible ? 0.15 : 0,   // 表示中は0.15、フェードアウト中は0
-      },
-      alt: "background slide",
-    }),
-
-    // 既存のUI全体（appクラスでレイアウト）
-    h(
+  if (isLoginPage) {
+    // ログイン画面
+    mainContent = h(
+      "div",
+      { className: "app" },
+      h(
+        "div",
+        { className: "login-page" },
+        h(
+          "div",
+          { className: "login-card" },
+          h("h1", { className: "login-title" }, "CQB GHOST"),
+          h(
+            "p",
+            { className: "login-subtitle" },
+            "予約するにはログインしてください"
+          ),
+          h(
+            "form",
+            { className: "login-form", onSubmit: handleLoginSubmit },
+            h(
+              "label",
+              { className: "login-label" },
+              "メールアドレス",
+              h("input", {
+                className: "login-input",
+                type: "email",
+                name: "email",
+                placeholder: "you@example.com",
+                required: true,
+              })
+            ),
+            h(
+              "label",
+              { className: "login-label" },
+              "パスワード",
+              h("input", {
+                className: "login-input",
+                type: "password",
+                name: "password",
+                placeholder: "********",
+                required: true,
+              })
+            ),
+            h(
+              "button",
+                { className: "login-button", type: "submit" },
+                "ログイン"
+            )
+          ),
+          // 新規登録へ
+          h(
+            "button",
+            {
+              type: "button",
+              className: "signup-button",
+              onClick: () => {
+                window.location.href = "/signup";
+              },
+            },
+            "新規登録"
+          ),
+          // カレンダーに戻る
+          h(
+            "button",
+            {
+              type: "button",
+              className: "login-back-button",
+              onClick: () => {
+                window.location.href = "/";
+              },
+            },
+            "← カレンダーに戻る"
+          )
+        )
+      )
+    );
+  } else if (isSignupPage) {
+    // 新規登録画面
+    mainContent = h(
+      "div",
+      { className: "app" },
+      h(
+        "div",
+        { className: "login-page" },
+        h(
+          "div",
+          { className: "login-card" },
+          h("h1", { className: "login-title" }, "CQB GHOST"),
+          h(
+            "p",
+            { className: "login-subtitle" },
+            "アカウントを作成して予約を開始しましょう"
+          ),
+          h(
+            "form",
+            { className: "login-form", onSubmit: handleSignupSubmit },
+            h(
+              "label",
+              { className: "login-label" },
+              "メールアドレス",
+              h("input", {
+                className: "login-input",
+                type: "email",
+                name: "email",
+                placeholder: "you@example.com",
+                required: true,
+              })
+            ),
+            h(
+              "label",
+              { className: "login-label" },
+              "パスワード",
+              h("input", {
+                className: "login-input",
+                type: "password",
+                name: "password",
+                placeholder: "********",
+                required: true,
+              })
+            ),
+            h(
+              "label",
+              { className: "login-label" },
+              "パスワード（確認）",
+              h("input", {
+                className: "login-input",
+                type: "password",
+                name: "confirm",
+                placeholder: "********",
+                required: true,
+              })
+            ),
+            h(
+              "button",
+              { className: "login-button", type: "submit" },
+              "新規登録"
+            )
+          ),
+          // ログイン画面へ戻る
+          h(
+            "button",
+            {
+              type: "button",
+              className: "login-back-button",
+              onClick: () => {
+                window.location.href = "/login";
+              },
+            },
+            "← ログイン画面に戻る"
+          )
+        )
+      )
+    );
+  } else if (isReservePage) {
+    // 予約フォーム画面
+    mainContent = h(
+      "div",
+      { className: "app" },
+      h(
+        "div",
+        { className: "login-page" },
+        h(
+          "div",
+          { className: "login-card" },
+          h("h1", { className: "login-title" }, "予約フォーム"),
+          h(
+            "p",
+            { className: "login-subtitle" },
+            "以下の内容を入力して予約を確定してください"
+          ),
+          h(
+            "form",
+            { className: "login-form", onSubmit: handleReservationSubmit },
+            // 名前
+            h(
+              "label",
+              { className: "login-label" },
+              "名前",
+              h("input", {
+                className: "login-input",
+                type: "text",
+                name: "name",
+                placeholder: "例）山田 太郎",
+                required: true,
+              })
+            ),
+            // メールアドレス
+            h(
+              "label",
+              { className: "login-label" },
+              "メールアドレス",
+              h("input", {
+                className: "login-input",
+                type: "email",
+                name: "email",
+                placeholder: "you@example.com",
+                required: true,
+              })
+            ),
+            // 参加チーム名
+            h(
+              "label",
+              { className: "login-label" },
+              "参加チーム名",
+              h("input", {
+                className: "login-input",
+                type: "text",
+                name: "groupName",
+                placeholder: "例）Red team",
+                required: true,
+              })
+            ),
+            // 日付
+            h(
+              "label",
+              { className: "login-label" },
+              "日付",
+              h("input", {
+                className: "login-input",
+                type: "date",
+                name: "date",
+                defaultValue: reservedDate,
+                required: true,
+              })
+            ),
+            // 時間
+            h(
+              "label",
+              { className: "login-label" },
+              "時間",
+              h("input", {
+                className: "login-input",
+                type: "time",
+                name: "time",
+                required: true,
+              })
+            ),
+            // 予約確定ボタン
+            h(
+              "button",
+              { className: "login-button", type: "submit" },
+              "予約を確定する"
+            )
+          ),
+          // カレンダーに戻る
+          h(
+            "button",
+            {
+              type: "button",
+              className: "login-back-button",
+              onClick: () => {
+                window.location.href = "/";
+              },
+            },
+            "← カレンダーに戻る"
+          )
+        )
+      )
+    );
+  } else {
+    // カレンダー画面のUI
+    mainContent = h(
       "div",
       { className: "app" },
 
@@ -343,7 +648,26 @@ function App() {
           )
         )
       )
-    )
+    );
+  }
+
+  // ★ UI 全体（背景 + 各画面）
+  return h(
+    "div",
+    { className: "app-root app" },
+
+    // 最背面の背景画像
+    h("img", {
+      src: images[currentImageIndex],
+      className: "bg-slide-image",
+      style: {
+        opacity: isVisible ? 0.15 : 0,
+      },
+      alt: "background slide",
+    }),
+
+    // メインコンテンツ（ログイン / 新規登録 / 予約フォーム / カレンダー）
+    mainContent
   );
 }
 

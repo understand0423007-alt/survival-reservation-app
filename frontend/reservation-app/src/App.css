@@ -415,3 +415,161 @@ body {
     transform: translate(-10px, 10px) scale(1.02);
   }
 }
+
+/* ======== ログイン画面用スタイル ======== */
+
+.login-page {
+  min-height: calc(100vh - 48px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px 24px 20px;
+  border-radius: 16px;
+  background: rgba(3, 18, 10, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(32, 89, 58, 0.9),
+    0 12px 24px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(3px);
+}
+
+.login-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8CFF4F;
+  text-align: center;
+  text-shadow:
+    0 0 4px rgba(140, 255, 79, 0.9),
+    0 0 10px rgba(140, 255, 79, 0.6);
+}
+
+.login-subtitle {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: #9ABF8F;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.login-label {
+  font-size: 12px;
+  color: #A9D9A7;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #2e5b3e;
+  background: rgba(4, 18, 12, 0.95);
+  color: #E5F7E0;
+  font-size: 13px;
+  outline: none;
+}
+
+.login-input:focus {
+  border-color: #3EF68A;
+  box-shadow:
+    0 0 4px rgba(45, 214, 107, 0.9),
+    0 0 12px rgba(45, 214, 107, 0.6);
+}
+
+.login-button {
+  margin-top: 4px;
+  width: 100%;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  border: 1px solid #2DD66B;
+  background: rgba(5, 36, 19, 0.95);
+  color: #CFFFE1;
+  cursor: pointer;
+  box-shadow:
+    0 0 4px rgba(45, 214, 107, 0.9),
+    0 0 10px rgba(45, 214, 107, 0.4);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease;
+}
+
+.login-button:hover {
+  transform: translateY(-1px);
+  background: rgba(10, 56, 30, 0.98);
+  box-shadow:
+    0 0 6px rgba(45, 214, 107, 1),
+    0 0 14px rgba(45, 214, 107, 0.7);
+}
+
+.login-back-button {
+  margin-top: 4px;
+  width: 100%;
+  padding: 7px 16px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(80, 255, 140, 0.3);
+  background: transparent;
+  color: #9ABF8F;
+  cursor: pointer;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.login-back-button:hover {
+  background: rgba(5, 25, 14, 0.9);
+  border-color: rgba(80, 255, 140, 0.7);
+  color: #CFFFE1;
+}
+
+/* 新規登録ボタン */
+.signup-button {
+  margin-top: 8px;
+  width: 100%;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  border: 1px solid #5ae6ff;
+  background: rgba(10, 40, 50, 0.95);
+  color: #d6faff;
+  cursor: pointer;
+  box-shadow:
+    0 0 4px rgba(70, 220, 255, 0.9),
+    0 0 10px rgba(70, 220, 255, 0.4);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease;
+}
+
+.signup-button:hover {
+  transform: translateY(-1px);
+  background: rgba(20, 80, 100, 0.98);
+  box-shadow:
+    0 0 6px rgba(70, 220, 255, 1),
+    0 0 14px rgba(70, 220, 255, 0.7);
+}
+
