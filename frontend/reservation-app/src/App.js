@@ -1,7 +1,18 @@
 import React, { useState, useMemo, useEffect } from "react";
 import "./App.css";
-import { auth } from "./firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "./firebase";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
 
 // 仮の予約データ（あとでAPIやFirebaseとつなぐときに差し替え）
 const sampleReservations = {
@@ -47,31 +58,42 @@ function App() {
   const [reserveStep, setReserveStep] = useState("form"); // "form" or "confirm"
   const [reserveData, setReserveData] = useState(null); // { name, email, groupName, date, time }
 
-  // ログインフォーム送信時の処理（仮）
-  const handleLoginSubmit = (event) => {
+  // ログインフォーム送信時の処理（本物）
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
     const email = form.elements.email.value;
     const password = form.elements.password.value;
 
-    // TODO: 実際はここでAPIに投げる
     if (!email || !password) {
       alert("メールアドレスとパスワードを入力してください。");
       return;
     }
 
-    // ここで reserveDate を読む例（何かに使いたいとき）
-    const reservedDate = sessionStorage.getItem("reserveDate");
-    console.log("ログイン後に使う日付: ", reservedDate);
+    try {
+      // Firebase Authentication でログイン
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("ログインユーザー:", userCredential.user);
 
-    alert("仮ログイン完了: " + email + " でログインしました。");
+      const reservedDate = sessionStorage.getItem("reserveDate");
+      console.log("ログイン後に使う日付: ", reservedDate);
 
-    // ログイン完了後は予約フォームへ
-    window.location.href = "/reserve";
+      alert(email + " でログインしました。");
+
+      // ログイン完了後は予約フォームへ
+      window.location.href = "/reserve";
+    } catch (error) {
+      console.error("ログインエラー:", error);
+      alert("ログインに失敗しました: " + error.message);
+    }
   };
 
-  // 新規登録フォーム送信時の処理（仮）
-  const handleSignupSubmit = (event) => {
+  // 新規登録フォーム送信時の処理（本物）
+  const handleSignupSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
     const email = form.elements.email.value;
@@ -88,11 +110,22 @@ function App() {
       return;
     }
 
-    // TODO: 実際はここでAPIにユーザー作成リクエストを送る
-    alert("仮登録が完了しました: " + email);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("新規登録ユーザー:", userCredential.user);
 
-    // 登録完了後はログイン画面へ
-    window.location.href = "/login";
+      alert("登録が完了しました: " + email);
+
+      // 登録完了後はログイン画面へ
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("新規登録エラー:", error);
+      alert("登録に失敗しました: " + error.message);
+    }
   };
 
   // 予約フォーム送信時の処理（確認画面へ進む）
@@ -117,27 +150,51 @@ function App() {
   };
 
   // 確認画面で「この内容で予約する」が押されたとき
-  const handleConfirmReservation = () => {
+  const handleConfirmReservation = async () => {
     if (!reserveData) return;
-
+  
     const { name, email, groupName, date, time } = reserveData;
-
-    // TODO: ここで実際の予約APIに送る
-    console.log("予約データ（確定）:", reserveData);
-
-    alert(
-      `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
-    );
-
-    // 使い終わった日付をクリア
-    sessionStorage.removeItem("reserveDate");
-
-    // 予約ステップをリセット
-    setReserveData(null);
-    setReserveStep("form");
-
-    // カレンダーに戻る
-    window.location.href = "/";
+  
+    try {
+      // ① 同一日時の重複チェック
+      const reservationsRef = collection(db, "reservations");
+      const q = query(
+        reservationsRef,
+        where("date", "==", date),
+        where("time", "==", time)
+      );
+      const snapshot = await getDocs(q);
+  
+      if (!snapshot.empty) {
+        alert("その日時にはすでに予約が入っています。別の時間を選んでください。");
+        return;
+      }
+  
+      // ② 予約データを Firestore に保存
+      const user = auth.currentUser;
+      await addDoc(reservationsRef, {
+        name,
+        email,
+        team: groupName,
+        date,
+        time,
+        userId: user ? user.uid : null,
+        createdAt: serverTimestamp(),
+      });
+  
+      alert(
+        `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
+      );
+  
+      // ③ 後片付け
+      sessionStorage.removeItem("reserveDate");
+      setReserveData(null);
+      setReserveStep("form");
+      window.location.href = "/";
+    } catch (error) {
+      console.error("予約登録エラー:", error);
+      alert("予約の登録に失敗しました: " + error.message);
+    }
   };
 
   // 確認画面で「内容を修正する」が押されたとき
@@ -212,6 +269,7 @@ function App() {
 
   // 現在表示している画像のindex
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   // フェード用：true = 表示中 / false = フェードアウト中
   const [isVisible, setIsVisible] = useState(true);
 

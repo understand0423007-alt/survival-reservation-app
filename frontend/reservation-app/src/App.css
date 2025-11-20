@@ -373,21 +373,7 @@ body {
   box-shadow: none;
 }
 
-/* 背景画像 */
-.bg-slide-image {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-  opacity: 0.15;               /* 初期表示時の透け具合（JSで上書きされる） */
-  pointer-events: none;
-  z-index: -1;                 /* 背景として後ろに配置 */
-  transition: opacity 1s ease-in-out;  /* ★ これでフェードIN/OUT */
-}
-
-/* 背景にわずかな動きをつける（HUDゆらぎ） */
+/* 背景画像 ＋ ゆらぎアニメーション */
 .bg-slide-image {
   position: fixed;
   top: 0;
@@ -399,21 +385,11 @@ body {
   pointer-events: none;
   z-index: -1;
 
-  /* ★ ゆっくり揺らすアニメーション */
-  animation: slight-move 10s ease-in-out infinite alternate;
-}
+  /* フェードIN/OUT用 */
+  transition: opacity 1s ease-in-out;
 
-/* わずかに揺らすアニメーション */
-@keyframes slight-move {
-  0% {
-    transform: translate(5px, 5px) scale(1.02);
-  }
-  50% {
-    transform: translate(12px, -8px) scale(1.03);
-  }
-  100% {
-    transform: translate(-10px, 10px) scale(1.02);
-  }
+  /* ゆっくり揺らすアニメーション */
+  animation: slight-move 10s ease-in-out infinite alternate;
 }
 
 /* ======== ログイン画面用スタイル ======== */
