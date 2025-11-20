@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import "./App.css";
+import { auth } from "./firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 // 仮の予約データ（あとでAPIやFirebaseとつなぐときに差し替え）
 const sampleReservations = {
