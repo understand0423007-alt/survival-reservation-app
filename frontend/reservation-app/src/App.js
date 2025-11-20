@@ -1062,6 +1062,23 @@ function App() {
             )
           )
         )
+      ),
+       // ★ Google Map を追加
+      h("div", { style: { marginTop: "20px" } },
+        h("div", { className: "military-map-frame" },
+          h("iframe", {
+            src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d33857.30909064003!2d134.7547937!3d34.9529481!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x355523350dad5c6d%3A0xe17a489032f142b3!2sC.Q.B%20GHOST!5e0!3m2!1sja!2sjp!4v1700000000000!5m2!1sja!2sjp",
+            width: "100%",
+            height: "300",
+            style: {
+              border: "0",
+              borderRadius: "12px",
+            },
+            allowFullScreen: "",
+            loading: "lazy",
+            referrerPolicy: "no-referrer-when-downgrade",
+          })
+        )
       )
     );
   }

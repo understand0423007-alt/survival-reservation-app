@@ -632,3 +632,69 @@ body {
     0 0 6px rgba(45, 214, 107, 1),
     0 0 14px rgba(45, 214, 107, 0.7);
 }
+
+/* ------------------------------
+   🔥 ミリタリー HUD（飛行機の計器）風フレーム
+   Google Map の部分だけに適用
+------------------------------ */
+
+.military-map-frame {
+  margin-top: 30px;
+  padding: 12px;
+
+  /* HUDの蛍光グリーン */
+  border: 2px solid #00ff66;
+  box-shadow: 0 0 10px #00ff66, inset 0 0 10px #00ff66;
+
+  /* F-16 の MFD のように角ばったデザイン */
+  border-radius: 6px;
+
+  /* 背景をHUDガラス風に薄く黒く */
+  background: rgba(0, 20, 0, 0.55);
+
+  /* フチの発光感 */
+  position: relative;
+}
+
+/* ≡ 上下左右に HUD 風ライン */
+.military-map-frame::before,
+.military-map-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 80%;
+  height: 1px;
+  background: #00ff66;
+  box-shadow: 0 0 6px #00ff66;
+  transform: translateX(-50%);
+  opacity: 0.6;
+}
+
+/* 上部水平線 */
+.military-map-frame::before {
+  top: 10px;
+}
+
+/* 下部水平線 */
+.military-map-frame::after {
+  bottom: 10px;
+}
+
+/* 左右の縦ライン（オプション） */
+.military-map-frame .side-line {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  width: 2px;
+  background: #00ff66;
+  opacity: 0.4;
+  box-shadow: 0 0 6px #00ff66;
+}
+
+.military-map-frame .side-line.left {
+  left: 12px;
+}
+
+.military-map-frame .side-line.right {
+  right: 12px;
+}
