@@ -331,10 +331,11 @@ body {
 
 /* 詳細パネル下部のフッター（右下揃え） */
 .detail-footer {
-  margin-top: auto;           /* ★ これで下に張り付く */
-  padding-top: 16px;          /* 上と少し間隔を空ける */
+  margin-top: auto;           /* 枠の一番下まで押し下げる */
+  padding-top: 16px;          /* 上のリストと少し間隔を空ける */
   display: flex;
-  justify-content: flex-end;  /* 右寄せ */
+  justify-content: space-between;  /* 左に人数、右にボタン */
+  align-items: center;
 }
 
 /* 予約ボタン（HUD風） */
@@ -697,4 +698,153 @@ body {
 
 .military-map-frame .side-line.right {
   right: 12px;
+}
+
+.hud-title {
+  position: relative;
+  font-family: 'Orbitron', sans-serif;
+  color: #8CFF4F;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-size: 34px;
+  font-weight: 900;
+
+  /* 発光エフェクト */
+  text-shadow:
+    0 0 6px rgba(140, 255, 79, 1),
+    0 0 14px rgba(140, 255, 79, 0.8),
+    0 0 30px rgba(140, 255, 79, 0.6);
+}
+
+/* タイトルの左右に “照準ライン” を追加 */
+.hud-title::before,
+.hud-title::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 80px;
+  height: 2px;
+  background: rgba(140, 255, 79, 0.6);
+  box-shadow:
+    0 0 8px rgba(140, 255, 79, 0.9),
+    0 0 14px rgba(140, 255, 79, 0.8);
+}
+
+.hud-title::before {
+  left: -100px;
+}
+
+.hud-title::after {
+  right: -100px;
+}
+
+/* タイトル下に “距離計ライン” を追加 */
+.hud-title::after {
+  right: -100px;
+}
+
+/* 上下に薄いレーダー線 */
+.hud-title::before {
+  left: -100px;
+}
+
+.hud-title::after {
+  right: -100px;
+}
+
+/* 下に細いレーダーラインを追加 */
+.hud-title::after {
+  bottom: -10px;
+}
+
+/* レーダー中央に点滅するHUDカーソル */
+.hud-title::after {
+  animation: hud-blink 1.2s infinite;
+}
+
+@keyframes hud-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+.total-people {
+  font-size: 12px;
+  color: #cdecc1;
+  opacity: 0.85;
+}
+
+/* --- MFD風フローティングパネル（左上） --- */
+.floating-dropdown-wrapper {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 3000;
+}
+
+/* MFD本体フレーム */
+.floating-dropdown {
+  position: relative;
+  background: radial-gradient(circle at top, #07140a 0%, #020804 65%);
+  color: #8cff6a; /* MFD の蛍光グリーン */
+  border: 1px solid #1f4b29;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  font-family: "Consolas", "Courier New", monospace;
+  text-transform: uppercase;
+  outline: none;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(60, 255, 120, 0.35),
+    0 0 12px rgba(0, 0, 0, 0.9),
+    0 0 18px rgba(0, 0, 0, 1);
+  appearance: none;          /* ブラウザ標準の見た目を消す（対応ブラウザのみ） */
+}
+
+/* ▼ 簡易的な“下向き三角”を右側に描画（MFDのメニューキーっぽい） */
+.floating-dropdown::after {
+  content: "▼";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: #8cff6a;
+  opacity: 0.85;
+}
+
+/* ▼ 上下左右の“コの字”コーナー（MFDの枠っぽい装飾） */
+.floating-dropdown::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 4px;
+  border-top: 2px solid rgba(140, 255, 106, 0.8);
+  border-left: 2px solid rgba(140, 255, 106, 0.8);
+  border-bottom: 2px solid rgba(140, 255, 106, 0.3);
+  border-right: 2px solid rgba(140, 255, 106, 0.3);
+  box-shadow:
+    0 0 6px rgba(140, 255, 106, 0.55),
+    inset 0 0 6px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+/* ホバー時：スキャンラインっぽく少し明るくする */
+.floating-dropdown:hover,
+.floating-dropdown:focus {
+  border-color: #3dff81;
+  box-shadow:
+    0 0 0 1px rgba(80, 255, 150, 0.8),
+    0 0 14px rgba(80, 255, 150, 0.8);
+  background: radial-gradient(circle at top, #0b2a15 0%, #020804 70%);
+}
+
+/* option も軍用端末風カラーにしておく */
+.floating-dropdown option {
+  background: #020804;
+  color: #b4ffb4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
 }

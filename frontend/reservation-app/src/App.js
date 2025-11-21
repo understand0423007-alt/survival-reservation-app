@@ -23,7 +23,7 @@ function App() {
   // 管理者画面用：予約一覧
   const [adminReservations, setAdminReservations] = useState([]);
 
-  // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time }, ...] }
+  // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time, peopleCount }, ...] }
   const [reservationsByDate, setReservationsByDate] = useState({});
 
   // 画像リスト（public/images 配下に置く想定）
@@ -48,9 +48,9 @@ function App() {
 
   // 予約フォーム → 確認画面のステップ管理
   const [reserveStep, setReserveStep] = useState("form"); // "form" or "confirm"
-  const [reserveData, setReserveData] = useState(null); // { name, email, groupName, date, time }
+  const [reserveData, setReserveData] = useState(null); // { name, email, groupName, date, time, peopleCount, rentalNeeded }
 
-  // ログインフォーム送信時の処理（本物）
+  // ログインフォーム送信時
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
@@ -63,7 +63,6 @@ function App() {
     }
 
     try {
-      // Firebase Authentication でログイン
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -75,8 +74,6 @@ function App() {
       console.log("ログイン後に使う日付: ", reservedDate);
 
       alert(email + " でログインしました。");
-
-      // ログイン完了後は予約フォームへ
       window.location.href = "/reserve";
     } catch (error) {
       console.error("ログインエラー:", error);
@@ -84,7 +81,7 @@ function App() {
     }
   };
 
-  // 新規登録フォーム送信時の処理（本物）
+  // 新規登録フォーム送信時
   const handleSignupSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
@@ -111,8 +108,6 @@ function App() {
       console.log("新規登録ユーザー:", userCredential.user);
 
       alert("登録が完了しました: " + email);
-
-      // 登録完了後はログイン画面へ
       window.location.href = "/login";
     } catch (error) {
       console.error("新規登録エラー:", error);
@@ -124,7 +119,7 @@ function App() {
     }
   };
 
-  // 予約フォーム送信時の処理（確認画面へ進む）
+  // 予約フォーム送信時（確認画面へ）
   const handleReservationSubmit = (event) => {
     event.preventDefault();
     const form = event.target;
@@ -134,27 +129,61 @@ function App() {
     const groupName = form.elements.groupName.value;
     const date = form.elements.date.value;
     const time = form.elements.time.value;
+    const peopleCountStr = form.elements.peopleCount.value;
+    const peopleCount = Number(peopleCountStr);
 
-    if (!name || !email || !groupName || !date || !time) {
+    // レンタル装備
+    const rentalNeededValue = form.elements.rentalNeeded?.value; // "yes" or "no"
+
+    if (
+      !name ||
+      !email ||
+      !groupName ||
+      !date ||
+      !time ||
+      !peopleCountStr ||
+      !rentalNeededValue
+    ) {
       alert("すべての項目を入力してください。");
       return;
     }
 
-    // 入力内容を state に保存して確認画面へ
-    setReserveData({ name, email, groupName, date, time });
+    if (Number.isNaN(peopleCount) || peopleCount <= 0) {
+      alert("人数は1以上の数値で入力してください。");
+      return;
+    }
+
+    const rentalNeeded = rentalNeededValue === "yes";
+
+    setReserveData({
+      name,
+      email,
+      groupName,
+      date,
+      time,
+      peopleCount,
+      rentalNeeded,
+    });
     setReserveStep("confirm");
   };
 
-  // 確認画面で「この内容で予約する」が押されたとき
+  // 確認画面で「この内容で予約する」
   const handleConfirmReservation = async () => {
     if (!reserveData) return;
 
-    const { name, email, groupName, date, time } = reserveData;
+    const {
+      name,
+      email,
+      groupName,
+      date,
+      time,
+      peopleCount,
+      rentalNeeded,
+    } = reserveData;
 
     try {
       const reservationsRef = collection(db, "reservations");
 
-      // ★ 重複チェックは行わず、そのまま追加する
       const user = auth.currentUser;
       const docRef = await addDoc(reservationsRef, {
         name,
@@ -162,11 +191,24 @@ function App() {
         team: groupName,
         date,
         time,
+        peopleCount,
+        rentalNeeded,
         userId: user ? user.uid : null,
         createdAt: serverTimestamp(),
       });
 
-      // カレンダー表示用の state にも反映
+      alert(
+        `予約を受け付けました。\n\n` +
+          `日付: ${date}\n` +
+          `時間: ${time}\n` +
+          `チーム名: ${groupName}\n` +
+          `人数: ${peopleCount}名\n` +
+          `レンタル装備: ${rentalNeeded ? "必要" : "不要"}\n` +
+          `お名前: ${name}\n` +
+          `メール: ${email}`
+      );
+
+      // カレンダー表示用 state にも反映（人数も反映）
       setReservationsByDate((prev) => {
         const prevList = prev[date] || [];
         return {
@@ -177,14 +219,11 @@ function App() {
               id: docRef.id,
               groupName: groupName,
               time: time,
+              peopleCount: peopleCount,
             },
           ],
         };
       });
-
-      alert(
-        `予約を受け付けました。\n\n日付: ${date}\n時間: ${time}\nチーム名: ${groupName}\nお名前: ${name}\nメール: ${email}`
-      );
 
       // 後片付け
       sessionStorage.removeItem("reserveDate");
@@ -225,7 +264,7 @@ function App() {
     }
   };
 
-  // 確認画面で「内容を修正する」が押されたとき
+  // 確認画面で「内容を修正する」
   const handleBackToReservationForm = () => {
     setReserveStep("form");
   };
@@ -288,25 +327,20 @@ function App() {
       return;
     }
 
-    // 1. 選択した日付をログイン後・予約フォームで使うため保存
     sessionStorage.setItem("reserveDate", selectedDate);
-
-    // 2. ログイン画面（/login）へ遷移
     window.location.href = "/login";
   };
 
-  // 現在表示している画像のindex
+  // 背景スライドショー
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // フェード用：true = 表示中 / false = フェードアウト中
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    const intervalMs = 8000; // 何秒ごとに画像を切り替えるか
-    const fadeMs = 1000; // フェード時間
+    const intervalMs = 8000;
+    const fadeMs = 1000;
 
     const intervalId = setInterval(() => {
-      setIsVisible(false); // ① まずフェードアウト
+      setIsVisible(false);
 
       setTimeout(() => {
         setCurrentImageIndex((prev) => {
@@ -316,7 +350,7 @@ function App() {
           }
           return next;
         });
-        setIsVisible(true); // フェードイン
+        setIsVisible(true);
       }, fadeMs);
     }, intervalMs);
 
@@ -325,7 +359,7 @@ function App() {
 
   // 管理者画面用：予約一覧を取得
   useEffect(() => {
-    if (!isAdminPage) return; // /admin のときだけ動かす
+    if (!isAdminPage) return;
 
     const fetchAdminReservations = async () => {
       try {
@@ -340,12 +374,13 @@ function App() {
             team: data.team,
             date: data.date,
             time: data.time,
+            peopleCount: data.peopleCount || 0,
           };
         });
 
-        // 日付 → 時間 の順に並び替え（文字列としてOK）
         list.sort(
-          (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+          (a, b) =>
+            a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
         );
 
         setAdminReservations(list);
@@ -368,9 +403,10 @@ function App() {
 
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const date = data.date; // "YYYY-MM-DD"
-          const team = data.team; // チーム名
-          const time = data.time; // "HH:MM"
+          const date = data.date;
+          const team = data.team;
+          const time = data.time;
+          const peopleCount = data.peopleCount;
 
           if (!map[date]) {
             map[date] = [];
@@ -380,6 +416,7 @@ function App() {
             id: docSnap.id,
             groupName: team,
             time: time,
+            peopleCount: peopleCount,
           });
         });
 
@@ -417,14 +454,20 @@ function App() {
         h(
           "li",
           { key: r.id, className: "reservation-item" },
-          h("div", { className: "reservation-group" }, r.groupName),
+          h(
+            "div",
+            { className: "reservation-group" },
+            r.peopleCount != null
+              ? `${r.groupName}（${r.peopleCount}名）`
+              : r.groupName
+          ),
           h("div", { className: "reservation-time" }, r.time)
         )
       )
     );
   }
 
-  // ★ ここで「ログイン / 新規登録 / 予約フォーム / 管理画面 / カレンダー」を分ける
+  // 画面切り替え
   let mainContent;
 
   if (isLoginPage) {
@@ -438,7 +481,7 @@ function App() {
         h(
           "div",
           { className: "login-card" },
-          h("h1", { className: "login-title" }, "CQB GHOST"),
+          h("h1", { className: "login-title" }, "SURE SHOT"),
           h(
             "p",
             { className: "login-subtitle" },
@@ -477,7 +520,6 @@ function App() {
               "ログイン"
             )
           ),
-          // 新規登録へ
           h(
             "button",
             {
@@ -489,7 +531,6 @@ function App() {
             },
             "新規登録"
           ),
-          // カレンダーに戻る
           h(
             "button",
             {
@@ -515,7 +556,7 @@ function App() {
         h(
           "div",
           { className: "login-card" },
-          h("h1", { className: "login-title" }, "CQB GHOST"),
+          h("h1", { className: "login-title" }, "SURE SHOT"),
           h(
             "p",
             { className: "login-subtitle" },
@@ -566,7 +607,6 @@ function App() {
               "新規登録"
             )
           ),
-          // ログイン画面へ戻る
           h(
             "button",
             {
@@ -582,16 +622,19 @@ function App() {
       )
     );
   } else if (isReservePage) {
-    // 予約フォーム画面 or 確認画面
-    // フォームで使う初期値（戻ってきた時は reserveData を優先）
+    // 予約フォーム or 確認画面
     const initialName = reserveData ? reserveData.name : "";
     const initialEmail = reserveData ? reserveData.email : "";
     const initialGroupName = reserveData ? reserveData.groupName : "";
-    const initialDate = reserveData ? reserveData.date : reservedDate; // カレンダーで選んだ日付
+    const initialDate = reserveData ? reserveData.date : reservedDate;
     const initialTime = reserveData ? reserveData.time : "";
+    const initialPeopleCount = reserveData ? reserveData.peopleCount : "";
+    const initialRentalNeeded = reserveData
+      ? reserveData.rentalNeeded
+      : null;
 
     if (reserveStep === "confirm" && reserveData) {
-      // ★ 確認画面UI
+      // 確認画面
       mainContent = h(
         "div",
         { className: "app" },
@@ -607,11 +650,10 @@ function App() {
               { className: "login-subtitle" },
               "以下の内容で予約してよろしいですか？"
             ),
-
-            // 内容一覧
             h(
               "div",
               { className: "reserve-summary" },
+              // 名前
               h(
                 "div",
                 { className: "reserve-summary-row" },
@@ -622,6 +664,7 @@ function App() {
                   reserveData.name
                 )
               ),
+              // メール
               h(
                 "div",
                 { className: "reserve-summary-row" },
@@ -632,6 +675,7 @@ function App() {
                   reserveData.email
                 )
               ),
+              // チーム名
               h(
                 "div",
                 { className: "reserve-summary-row" },
@@ -646,6 +690,33 @@ function App() {
                   reserveData.groupName
                 )
               ),
+              // 人数
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "人数"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.peopleCount + " 名"
+                )
+              ),
+              // レンタル装備
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h(
+                  "span",
+                  { className: "reserve-summary-label" },
+                  "レンタル装備"
+                ),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.rentalNeeded ? "必要" : "不要"
+                )
+              ),
+              // 日付
               h(
                 "div",
                 { className: "reserve-summary-row" },
@@ -656,6 +727,7 @@ function App() {
                   reserveData.date
                 )
               ),
+              // 時間
               h(
                 "div",
                 { className: "reserve-summary-row" },
@@ -667,8 +739,6 @@ function App() {
                 )
               )
             ),
-
-            // ボタン2つ
             h(
               "div",
               { className: "reserve-actions" },
@@ -691,8 +761,6 @@ function App() {
                 "この内容で予約する"
               )
             ),
-
-            // カレンダーに戻る（確認画面からでも戻れるように）
             h(
               "button",
               {
@@ -708,7 +776,7 @@ function App() {
         )
       );
     } else {
-      // ★ 入力用フォーム画面
+      // 入力フォーム画面
       mainContent = h(
         "div",
         { className: "app" },
@@ -769,6 +837,79 @@ function App() {
                   required: true,
                 })
               ),
+              // 人数
+              h(
+                "label",
+                { className: "login-label" },
+                "人数",
+                h("input", {
+                  className: "login-input",
+                  type: "number",
+                  name: "peopleCount",
+                  min: 1,
+                  step: 1,
+                  placeholder: "例）5",
+                  defaultValue: initialPeopleCount,
+                  required: true,
+                })
+              ),
+              // レンタル装備
+              h(
+                "label",
+                { className: "login-label" },
+                "レンタル装備",
+                h(
+                  "div",
+                  {
+                    style: {
+                      display: "flex",
+                      gap: "12px",
+                      marginTop: "4px",
+                    },
+                  },
+                  h(
+                    "label",
+                    {
+                      style: {
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      },
+                    },
+                    h("input", {
+                      type: "radio",
+                      name: "rentalNeeded",
+                      value: "yes",
+                      defaultChecked:
+                        initialRentalNeeded === true ? true : false,
+                      required: true,
+                    }),
+                    "必要"
+                  ),
+                  h(
+                    "label",
+                    {
+                      style: {
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      },
+                    },
+                    h("input", {
+                      type: "radio",
+                      name: "rentalNeeded",
+                      value: "no",
+                      defaultChecked:
+                        initialRentalNeeded === false || initialRentalNeeded === null
+                          ? true
+                          : false,
+                    }),
+                    "不要"
+                  )
+                )
+              ),
               // 日付
               h(
                 "label",
@@ -795,14 +936,12 @@ function App() {
                   required: true,
                 })
               ),
-              // 予約内容確認ボタン
               h(
                 "button",
                 { className: "login-button", type: "submit" },
                 "予約内容を確認する"
               )
             ),
-            // カレンダーに戻る
             h(
               "button",
               {
@@ -819,7 +958,7 @@ function App() {
       );
     }
   } else if (isAdminPage) {
-    // ★ 管理者用：予約一覧画面
+    // 管理者画面
     mainContent = h(
       "div",
       { className: "app" },
@@ -835,8 +974,6 @@ function App() {
             { className: "login-subtitle" },
             "予約一覧を確認・削除できます"
           ),
-
-          // 一覧テーブル
           h(
             "div",
             { style: { maxHeight: "400px", overflowY: "auto" } },
@@ -849,14 +986,13 @@ function App() {
                   borderCollapse: "collapse",
                 },
               },
-              // ヘッダー
               h(
                 "thead",
                 null,
                 h(
                   "tr",
                   null,
-                  ["名前", "メール", "チーム名", "日付", "時間", "操作"].map(
+                  ["名前", "メール", "チーム名", "日付", "時間", "人数", "操作"].map(
                     (label) =>
                       h(
                         "th",
@@ -874,7 +1010,6 @@ function App() {
                   )
                 )
               ),
-              // 本体
               h(
                 "tbody",
                 null,
@@ -887,6 +1022,11 @@ function App() {
                     h("td", { style: { padding: "4px 6px" } }, r.team),
                     h("td", { style: { padding: "4px 6px" } }, r.date),
                     h("td", { style: { padding: "4px 6px" } }, r.time),
+                    h(
+                      "td",
+                      { style: { padding: "4px 6px" } },
+                      r.peopleCount ? `${r.peopleCount}名` : "-"
+                    ),
                     h(
                       "td",
                       { style: { padding: "4px 6px" } },
@@ -905,8 +1045,6 @@ function App() {
               )
             )
           ),
-
-          // カレンダーへ戻るボタン
           h(
             "button",
             {
@@ -922,30 +1060,47 @@ function App() {
       )
     );
   } else {
-    // カレンダー画面のUI
+    // カレンダー画面
     mainContent = h(
       "div",
       { className: "app" },
-
-      // ヘッダー
       h(
         "header",
         { className: "app-header" },
-        h("h1", { className: "app-title" }, "CQB GHOST"),
-        h("p", { className: "app-subtitle" }, "Fukusaski 福崎店")
+        h("h1", { className: "app-title" }, "SURE SHOT"),
+        h("p", { className: "app-subtitle" }, "サバゲーフィールドシュアショット"),
+        // 管理者ボタン
+        h(
+          "button",
+          {
+            className: "admin-button",
+            onClick: () => {
+              const pass = prompt("管理者パスワードを入力してください");
+              if (pass === "admin123") {
+                window.location.href = "/admin";
+              } else {
+                alert("パスワードが違います");
+              }
+            },
+            style: {
+              marginLeft: "auto",
+              backgroundColor: "#224422",
+              padding: "6px 12px",
+              borderRadius: "4px",
+              color: "#cdecc1",
+              border: "1px solid #447744",
+              cursor: "pointer",
+            },
+          },
+          "管理者"
+        )
       ),
-
-      // 2カラムレイアウト全体
       h(
         "div",
         { className: "calendar-container" },
-
-        // 左：カレンダー
         h(
           "div",
           { className: "calendar-panel" },
-
-          // 月切り替えヘッダー
           h(
             "div",
             { className: "calendar-header" },
@@ -961,8 +1116,6 @@ function App() {
               "→"
             )
           ),
-
-          // 曜日
           h(
             "div",
             { className: "weekday-row" },
@@ -977,8 +1130,6 @@ function App() {
               )
             )
           ),
-
-          // 日付グリッド
           h(
             "div",
             { className: "days-grid" },
@@ -994,12 +1145,10 @@ function App() {
               const reservations = getReservationsForDate(dateKey);
               const isSelected = selectedDate === dateKey;
 
-              // クラス名組み立て
               let className = "day-cell";
               if (isSelected) className += " selected";
               if (reservations.length > 0) className += " has-reservation";
 
-              // グループタグの子要素を配列で作る
               const groupTagChildren = [];
 
               reservations.slice(0, 2).forEach((r) => {
@@ -1007,7 +1156,9 @@ function App() {
                   h(
                     "span",
                     { key: r.id, className: "group-tag" },
-                    r.groupName
+                    r.peopleCount != null
+                      ? `${r.groupName}（${r.peopleCount}名）`
+                      : r.groupName
                   )
                 );
               });
@@ -1040,39 +1191,54 @@ function App() {
             })
           )
         ),
-
-        // 右：詳細パネル
         h(
           "div",
           { className: "detail-panel" },
           h("h2", { className: "detail-title" }, "参加予定チーム"),
           detailContent,
-          // 右下に「予約する」ボタン
+          // 下部に「合計人数 ＋ 予約ボタン」
           h(
             "div",
             { className: "detail-footer" },
+            // 左側：選択日の合計人数
+            selectedDate && selectedReservations.length > 0
+              ? h(
+                  "div",
+                  { className: "total-people" },
+                  `合計人数: ${
+                    selectedReservations.reduce(
+                      (sum, r) => sum + (r.peopleCount != null ? r.peopleCount : 0),
+                      0
+                    )
+                  }名`
+                )
+              : h("div", { className: "total-people" }, ""),
+            // 右側：予約ボタン
             h(
               "button",
               {
                 className: "reserve-button",
                 onClick: handleReserveClick,
-                disabled: !selectedDate, // 日付が未選択のときは押せないように
+                disabled: !selectedDate,
               },
               "予約する"
             )
           )
         )
       ),
-       // ★ Google Map を追加
-      h("div", { style: { marginTop: "20px" } },
-        h("div", { className: "military-map-frame" },
+      // Google Map
+      h(
+        "div",
+        { style: { marginTop: "20px" } },
+        h(
+          "div",
+          { className: "military-map-frame" },
           h("iframe", {
-            src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d33857.30909064003!2d134.7547937!3d34.9529481!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x355523350dad5c6d%3A0xe17a489032f142b3!2sC.Q.B%20GHOST!5e0!3m2!1sja!2sjp!4v1700000000000!5m2!1sja!2sjp",
+            src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2619.469799298635!2d135.1648477!3d34.9650719!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x60006e384e53c94b%3A0xb0ee221fd1b38517!2z44K144OQ44Ky44O844OV44Kj44O844Or44OJ44K344Ol44Ki44K344On44OD44OI!5e0!3m2!1sja!2sjp!4v1700000000000!5m2!1sja!2sjp",
             width: "100%",
             height: "300",
             style: {
               border: "0",
-              borderRadius: "12px",
             },
             allowFullScreen: "",
             loading: "lazy",
@@ -1083,12 +1249,37 @@ function App() {
     );
   }
 
-  // ★ UI 全体（背景 + 各画面）
   return h(
     "div",
     { className: "app-root app" },
-
-    // 最背面の背景画像
+  
+    // ★ 左上に固定表示するプルダウン
+    h(
+      "div",
+      { className: "floating-dropdown-wrapper" },
+      h(
+        "select",
+        {
+          className: "floating-dropdown",
+          onChange: (e) => {
+            const value = e.target.value;
+            if (value === "login") {
+              window.location.href = "/login";
+            }
+            if (value === "top") {
+              window.location.href = "/";
+            }
+          },
+        },
+        [
+          h("option", { value: "" }, "MENU"),
+          h("option", { value: "top"  }, "TOP"),
+          h("option", { value: "login" }, "LOGIN"),
+        ]
+      )
+    ),
+  
+    // 背景画像
     h("img", {
       src: images[currentImageIndex],
       className: "bg-slide-image",
@@ -1097,8 +1288,8 @@ function App() {
       },
       alt: "background slide",
     }),
-
-    // メインコンテンツ（ログイン / 新規登録 / 予約フォーム / 管理画面 / カレンダー）
+  
+    // 画面本体
     mainContent
   );
 }
