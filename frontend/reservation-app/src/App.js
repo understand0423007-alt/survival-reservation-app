@@ -12,7 +12,9 @@ import {
   serverTimestamp,
   deleteDoc,
   doc,
-  updateDoc, 
+  updateDoc,
+  getDoc,      // ★ 追加：ドキュメントを1件読む
+  setDoc,      // ★ 追加：ドキュメントを保存（作成/上書き）
 } from "firebase/firestore";
 
 function App() {
@@ -29,6 +31,11 @@ function App() {
 
   // ★ 管理者画面用：検索ワード
   const [adminSearchTerm, setAdminSearchTerm] = useState("");
+
+    // ★ 管理者画面用：営業時間（開店/閉店時間）
+    const [businessOpenTime, setBusinessOpenTime] = useState("09:00");
+    const [businessCloseTime, setBusinessCloseTime] = useState("17:00");
+    const [businessHoursSaving, setBusinessHoursSaving] = useState(false);
 
   // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time, peopleCount }, ...] }
   const [reservationsByDate, setReservationsByDate] = useState({});
@@ -282,6 +289,31 @@ function App() {
     }
   };
 
+  // ★ 管理者画面：営業時間の保存
+  const handleSaveBusinessHours = async () => {
+    if (!businessOpenTime || !businessCloseTime) {
+      alert("開店時間と閉店時間を入力してください。");
+      return;
+    }
+
+    try {
+      setBusinessHoursSaving(true);
+
+      const ref = doc(db, "settings", "businessHours");
+      await setDoc(ref, {
+        openTime: businessOpenTime,
+        closeTime: businessCloseTime,
+      });
+
+      alert("営業時間を保存しました。");
+    } catch (error) {
+      console.error("営業時間の保存エラー:", error);
+      alert("営業時間の保存に失敗しました: " + error.message);
+    } finally {
+      setBusinessHoursSaving(false);
+    }
+  };
+
   // 管理者画面：チェックイン状態のトグル
   const handleToggleCheckIn = async (id, currentCheckedIn) => {
     try {
@@ -442,6 +474,31 @@ function App() {
     };
 
     fetchAdminReservations();
+  }, [isAdminPage]);
+
+  // ★ 管理者画面用：営業時間を Firestore から読み込む
+  useEffect(() => {
+    if (!isAdminPage) return;
+
+    const fetchBusinessHours = async () => {
+      try {
+        const ref = doc(db, "settings", "businessHours");
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setBusinessOpenTime(data.openTime || "09:00");
+          setBusinessCloseTime(data.closeTime || "17:00");
+        } else {
+          // まだ設定がなければデフォルトのまま
+          console.log("businessHours 設定がまだありません");
+        }
+      } catch (error) {
+        console.error("営業時間設定の取得エラー:", error);
+      }
+    };
+
+    fetchBusinessHours();
   }, [isAdminPage]);
 
   // ★ 管理者画面：検索フィルタ済みの配列
@@ -1059,6 +1116,146 @@ function App() {
             { className: "login-subtitle" },
             "予約の検索・チェックイン・削除ができます"
           ),
+
+          // ★ 営業時間設定パネル（ここを追加）
+          h(
+            "div",
+            {
+              style: {
+                marginBottom: "12px",
+                padding: "8px 10px",
+                borderRadius: "8px",
+                border: "1px solid #29593A",
+                background: "rgba(4, 24, 14, 0.95)",
+                fontSize: "12px",
+              },
+            },
+            [
+              h(
+                "div",
+                {
+                  key: "title",
+                  style: {
+                    marginBottom: "6px",
+                    fontWeight: "600",
+                    color: "#A9D9A7",
+                  },
+                },
+                "営業時間設定"
+              ),
+              h(
+                "div",
+                {
+                  key: "fields",
+                  style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                  },
+                },
+                [
+                  h(
+                    "label",
+                    {
+                      key: "open",
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      },
+                    },
+                    [
+                      h(
+                        "span",
+                        { style: { minWidth: "56px" } },
+                        "開店"
+                      ),
+                      h("input", {
+                        type: "time",
+                        value: businessOpenTime,
+                        onChange: (e) =>
+                          setBusinessOpenTime(e.target.value),
+                        style: {
+                          padding: "4px 6px",
+                          backgroundColor: "#02150e",
+                          border: "1px solid #1f5a33",
+                          color: "#E5F7E0",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                        },
+                      }),
+                    ]
+                  ),
+                  h(
+                    "label",
+                    {
+                      key: "close",
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      },
+                    },
+                    [
+                      h(
+                        "span",
+                        { style: { minWidth: "56px" } },
+                        "閉店"
+                      ),
+                      h("input", {
+                        type: "time",
+                        value: businessCloseTime,
+                        onChange: (e) =>
+                          setBusinessCloseTime(e.target.value),
+                        style: {
+                          padding: "4px 6px",
+                          backgroundColor: "#02150e",
+                          border: "1px solid #1f5a33",
+                          color: "#E5F7E0",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                        },
+                      }),
+                    ]
+                  ),
+                  h(
+                    "button",
+                    {
+                      key: "save",
+                      type: "button",
+                      onClick: handleSaveBusinessHours,
+                      disabled: businessHoursSaving,
+                      style: {
+                        padding: "6px 12px",
+                        fontSize: "11px",
+                        borderRadius: "6px",
+                        border: "1px solid #2DD66B",
+                        background: "rgba(5, 36, 19, 0.95)",
+                        color: "#CFFFE1",
+                        cursor: "pointer",
+                        marginLeft: "4px",
+                      },
+                    },
+                    businessHoursSaving ? "保存中..." : "保存する"
+                  ),
+                ]
+              ),
+              h(
+                "div",
+                {
+                  key: "note",
+                  style: {
+                    marginTop: "4px",
+                    color: "#7BAF7E",
+                    fontSize: "11px",
+                  },
+                },
+                "※ 現在は予約フォームの時間制限には未反映（次のステップで反映可能）"
+              ),
+            ]
+          ),
+
 
           // 🔍 検索ボックス
           h(
