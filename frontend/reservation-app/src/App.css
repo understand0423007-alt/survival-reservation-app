@@ -959,3 +959,15 @@ body {
     max-width: 1000px;             /* 横に広げて一覧を見やすく */
   }
 }
+
+.session-block {
+  margin-bottom: 10px;
+}
+
+.detail-session-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #7CFF5A;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

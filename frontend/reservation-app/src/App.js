@@ -540,15 +540,30 @@ function App() {
     );
   });
 
-    // ★ 予約サマリー（件数・チェックイン数・人数合計）
-    const adminTotalCount = filteredAdminReservations.length;
-    const adminCheckedInCount = filteredAdminReservations.filter(
-      (r) => r.checkedIn
-    ).length;
-    const adminTotalPeople = filteredAdminReservations.reduce(
-      (sum, r) => sum + (r.peopleCount || 0),
-      0
-    );
+  // ★ 予約サマリー（件数・チェックイン数・人数合計）
+  const adminTotalCount = filteredAdminReservations.length;
+  const adminCheckedInCount = filteredAdminReservations.filter(
+    (r) => r.checkedIn
+  ).length;
+  const adminTotalPeople = filteredAdminReservations.reduce(
+    (sum, r) => sum + (r.peopleCount || 0),
+    0
+  );
+
+  // ★ 同じ日付ごとにひとまとめにした配列
+  // 例) [{ date: "2025-11-05", list: [予約1, 予約2,...] }, ...]
+  const groupedAdminReservations = [];
+  filteredAdminReservations.forEach((r) => {
+    const lastGroup =
+      groupedAdminReservations[groupedAdminReservations.length - 1];
+    if (!lastGroup || lastGroup.date !== r.date) {
+      // 新しい日付のグループを作る
+      groupedAdminReservations.push({ date: r.date, list: [r] });
+    } else {
+      // 直前のグループと同じ日付ならそこに追加
+      lastGroup.list.push(r);
+    }
+  });
 
   // Firestore から予約一覧を読み込む（カレンダー表示用）
   useEffect(() => {
@@ -565,7 +580,7 @@ function App() {
           const team = data.team;
           const time = data.time;
           const peopleCount = data.peopleCount;
-          const session = data.session;   // ★ 追加
+          const session = data.session || "";   // ★ 午前の部 / 午後の部
 
           if (!map[date]) {
             map[date] = [];
@@ -576,7 +591,7 @@ function App() {
             groupName: team,
             time: time,
             peopleCount: peopleCount,
-            session: session,             // ★ 追加
+            session: session,                  // ★ 追加
           });
         });
 
@@ -607,25 +622,80 @@ function App() {
       selectedDate + " の予約はまだありません。"
     );
   } else {
-    detailContent = h(
-      "ul",
-      { className: "reservation-list" },
-      selectedReservations.map((r) =>
-        h(
-          "li",
-          { key: r.id, className: "reservation-item" },
+    // ★ 午前の部 / 午後の部 / その他 に分割
+    const amReservations = selectedReservations.filter(
+      (r) => r.session === "午前の部"
+    );
+    const pmReservations = selectedReservations.filter(
+      (r) => r.session === "午後の部"
+    );
+    const otherReservations = selectedReservations.filter(
+      (r) => !r.session || (r.session !== "午前の部" && r.session !== "午後の部")
+    );
+
+    const renderList = (list) =>
+      h(
+        "ul",
+        { className: "reservation-list" },
+        list.map((r) =>
           h(
-            "div",
-            { className: "reservation-group" },
-            r.peopleCount != null
-              ? `${r.groupName}（${r.peopleCount}名）`
-              : r.groupName
-          ),
-          h("div", { className: "reservation-time" }, 
-          r.session ? `${r.time}（${r.session}）` : r.time   // ★ ここだけ変更
+            "li",
+            { key: r.id, className: "reservation-item" },
+            h(
+              "div",
+              { className: "reservation-group" },
+              r.peopleCount != null
+                ? `${r.groupName}（${r.peopleCount}名）`
+                : r.groupName
+            ),
+            h(
+              "div",
+              { className: "reservation-time" },
+              r.time
+            )
           )
         )
-      )
+      );
+
+    detailContent = h(
+      "div",
+      null,
+      // 午前の部
+      amReservations.length > 0 &&
+        h(
+          "div",
+          { className: "session-block" },
+          h(
+            "h3",
+            { className: "detail-session-title" },
+            "午前の部（9:00〜11:00）"
+          ),
+          renderList(amReservations)
+        ),
+      // 午後の部
+      pmReservations.length > 0 &&
+        h(
+          "div",
+          { className: "session-block" },
+          h(
+            "h3",
+            { className: "detail-session-title" },
+            "午後の部（13:00〜16:00）"
+          ),
+          renderList(pmReservations)
+        ),
+      // その他（古いデータなど session がないもの）
+      otherReservations.length > 0 &&
+        h(
+          "div",
+          { className: "session-block" },
+          h(
+            "h3",
+            { className: "detail-session-title" },
+            "その他"
+          ),
+          renderList(otherReservations)
+        )
     );
   }
 
@@ -1376,234 +1446,241 @@ function App() {
               ),
             ]
           ),
-
-          // 📋 予約一覧テーブル
+          // 📋 予約一覧リスト（カード表示）
           h(
             "div",
             { style: { maxHeight: "70vh", overflowY: "auto" } },
-            h(
-              "table",
-              {
-                style: {
-                  width: "100%",
-                  fontSize: "12px",
-                  borderCollapse: "collapse",
-                },
-              },
-              h(
-                "thead",
-                null,
-                h(
-                  "tr",
-                  null,
-                  // 列の順番を 日付 → 時間 → チーム → 名前 → メール → 人数 → 状態 → 操作 に変更
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
+            groupedAdminReservations.length === 0
+              ? h(
+                  "div",
+                  {
+                    style: {
+                      padding: "8px 6px",
+                      textAlign: "center",
+                      color: "#A9D9A7",
+                      fontSize: "12px",
                     },
-                    "日付"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "時間"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "チーム名"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "名前"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "メール"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "right",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "人数"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "状態"
-                  ),
-                  h(
-                    "th",
-                    {
-                      style: {
-                        borderBottom: "1px solid #29593A",
-                        padding: "4px 6px",
-                        textAlign: "left",
-                        color: "#A9D9A7",
-                      },
-                    },
-                    "操作"
-                  )
+                  },
+                  "該当する予約がありません"
                 )
-              ),
-              h(
-                "tbody",
-                null,
-                // 行ごとに色分け（ゼブラ行＋チェックイン行は少し濃い）
-                filteredAdminReservations.map((r, index) => {
-                  const rowBg = r.checkedIn
-                    ? "#062917" // チェックイン済みは少し濃い緑
-                    : index % 2 === 0
-                    ? "#02150e" // 偶数行
-                    : "transparent"; // 奇数行
-
-                  return h(
-                    "tr",
-                    { key: r.id, style: { backgroundColor: rowBg } },
-                    h("td", { style: { padding: "4px 6px" } }, r.date),
+              : groupedAdminReservations.map((group) =>
+                  h(
+                    "div",
+                    { key: group.date, style: { marginBottom: "14px" } },
+          
+                    // ★ 日付ラベル（ひとかたまりのタイトル）
                     h(
-                      "td",
-                      { style: { padding: "4px 6px" } },
-                      r.session ? `${r.time}（${r.session}）` : r.time
-                    ),
-                    h(
-                      "td",
-                      { style: { padding: "4px 6px", fontWeight: "bold" } },
-                      r.team
-                    ),
-                    h("td", { style: { padding: "4px 6px" } }, r.name),
-                    h(
-                      "td",
+                      "div",
                       {
                         style: {
-                          padding: "4px 6px",
-                          maxWidth: "180px",
-                          wordBreak: "break-all",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#CFFFE1",
+                          borderLeft: "3px solid #3EF68A",
+                          paddingLeft: "8px",
+                          marginBottom: "4px",
                         },
                       },
-                      r.email
+                      group.date
                     ),
+          
+                    // ★ この日付の中だけのテーブル
                     h(
-                      "td",
+                      "table",
                       {
                         style: {
-                          padding: "4px 6px",
-                          textAlign: "right",
-                          whiteSpace: "nowrap",
+                          width: "100%",
+                          fontSize: "12px",
+                          borderCollapse: "collapse",
+                          backgroundColor: "rgba(2,21,14,0.9)",
+                          borderRadius: "6px",
+                          overflow: "hidden",
                         },
                       },
-                      r.peopleCount ? `${r.peopleCount}名` : "-"
-                    ),
-                    h(
-                      "td",
-                      { style: { padding: "4px 6px" } },
-                      r.checkedIn
-                        ? h(
-                            "span",
-                            { className: "status-badge checked" },
-                            "チェックイン済"
-                          )
-                        : h(
-                            "span",
-                            { className: "status-badge" },
-                            "未チェックイン"
-                          )
-                    ),
-                    h(
-                      "td",
-                      { style: { padding: "4px 6px", whiteSpace: "nowrap" } },
                       h(
-                        "button",
-                        {
-                          className: "reserve-edit-button",
-                          type: "button",
-                          onClick: () =>
-                            handleToggleCheckIn(r.id, r.checkedIn),
-                          style: { marginRight: "6px" },
-                        },
-                        r.checkedIn ? "戻す" : "チェックイン"
+                        "thead",
+                        null,
+                        h(
+                          "tr",
+                          null,
+                          // ※ 日付は上のラベルに出ているので不要
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "時間"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "チーム名"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "名前"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "メール"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "right",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "人数"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "状態"
+                          ),
+                          h(
+                            "th",
+                            {
+                              style: {
+                                borderBottom: "1px solid #29593A",
+                                padding: "4px 6px",
+                                textAlign: "left",
+                                color: "#A9D9A7",
+                              },
+                            },
+                            "操作"
+                          )
+                        )
                       ),
                       h(
-                        "button",
-                        {
-                          className: "reserve-edit-button",
-                          type: "button",
-                          onClick: () => handleDeleteReservation(r.id),
-                        },
-                        "削除"
+                        "tbody",
+                        null,
+                        group.list.map((r, index) => {
+                          const rowBg = r.checkedIn
+                            ? "#062917"
+                            : index % 2 === 0
+                            ? "#02150e"
+                            : "transparent";
+          
+                          return h(
+                            "tr",
+                            { key: r.id, style: { backgroundColor: rowBg } },
+                            h(
+                              "td",
+                              { style: { padding: "4px 6px" } },
+                              r.session ? `${r.time}（${r.session}）` : r.time
+                            ),
+                            h(
+                              "td",
+                              { style: { padding: "4px 6px", fontWeight: "bold" } },
+                              r.team
+                            ),
+                            h("td", { style: { padding: "4px 6px" } }, r.name),
+                            h(
+                              "td",
+                              {
+                                style: {
+                                  padding: "4px 6px",
+                                  maxWidth: "180px",
+                                  wordBreak: "break-all",
+                                },
+                              },
+                              r.email
+                            ),
+                            h(
+                              "td",
+                              {
+                                style: {
+                                  padding: "4px 6px",
+                                  textAlign: "right",
+                                  whiteSpace: "nowrap",
+                                },
+                              },
+                              r.peopleCount ? `${r.peopleCount}名` : "-"
+                            ),
+                            h(
+                              "td",
+                              { style: { padding: "4px 6px" } },
+                              r.checkedIn
+                                ? h(
+                                    "span",
+                                    { className: "status-badge checked" },
+                                    "チェックイン済"
+                                  )
+                                : h(
+                                    "span",
+                                    { className: "status-badge" },
+                                    "未チェックイン"
+                                  )
+                            ),
+                            h(
+                              "td",
+                              { style: { padding: "4px 6px", whiteSpace: "nowrap" } },
+                              h(
+                                "button",
+                                {
+                                  className: "reserve-edit-button",
+                                  type: "button",
+                                  onClick: () =>
+                                    handleToggleCheckIn(r.id, r.checkedIn),
+                                  style: { marginRight: "6px" },
+                                },
+                                r.checkedIn ? "戻す" : "チェックイン"
+                              ),
+                              h(
+                                "button",
+                                {
+                                  className: "reserve-edit-button",
+                                  type: "button",
+                                  onClick: () => handleDeleteReservation(r.id),
+                                },
+                                "削除"
+                              )
+                            )
+                          );
+                        })
                       )
                     )
-                  );
-                }),
-                // 🔻 検索して0件のとき
-                filteredAdminReservations.length === 0 &&
-                  h(
-                    "tr",
-                    { key: "no-results" },
-                    h(
-                      "td",
-                      {
-                        colSpan: 8,
-                        style: {
-                          padding: "8px 6px",
-                          textAlign: "center",
-                          color: "#A9D9A7",
-                        },
-                      },
-                      "該当する予約がありません"
-                    )
                   )
-              )
-            )
+                )
           ),
 
           h(
