@@ -550,20 +550,35 @@ function App() {
     0
   );
 
-  // ★ 同じ日付ごとにひとまとめにした配列
-  // 例) [{ date: "2025-11-05", list: [予約1, 予約2,...] }, ...]
-  const groupedAdminReservations = [];
-  filteredAdminReservations.forEach((r) => {
-    const lastGroup =
-      groupedAdminReservations[groupedAdminReservations.length - 1];
-    if (!lastGroup || lastGroup.date !== r.date) {
-      // 新しい日付のグループを作る
-      groupedAdminReservations.push({ date: r.date, list: [r] });
-    } else {
-      // 直前のグループと同じ日付ならそこに追加
-      lastGroup.list.push(r);
-    }
-  });
+   // ★ 管理者テーブルの列幅（共通設定）
+   const adminColumnStyle = {
+    time:  { width: "12%", textAlign: "left",  padding: "4px 6px" },
+    team:  { width: "18%", textAlign: "left",  padding: "4px 6px" },
+    name:  { width: "14%", textAlign: "left",  padding: "4px 6px" },
+    email: { width: "26%", textAlign: "left",  padding: "4px 6px" },
+    people:{ width: "8%",  textAlign: "right", padding: "4px 6px", whiteSpace: "nowrap" },
+    status:{ width: "10%", textAlign: "left",  padding: "4px 6px" },
+    actions:{ width: "12%", textAlign: "left", padding: "4px 6px", whiteSpace: "nowrap" },
+  };
+
+  // ★ 日付ごとに予約をまとめる
+  const groupedAdminReservations = useMemo(() => {
+    const groups = {};
+
+    filteredAdminReservations.forEach((r) => {
+      if (!groups[r.date]) {
+        groups[r.date] = [];
+      }
+      groups[r.date].push(r);
+    });
+
+    return Object.entries(groups)
+      .sort(([d1], [d2]) => d1.localeCompare(d2)) // 日付順に並べる
+      .map(([date, list]) => ({
+        date,
+        list: list.sort((a, b) => a.time.localeCompare(b.time)), // 時間順
+      }));
+  }, [filteredAdminReservations]);
 
   // Firestore から予約一覧を読み込む（カレンダー表示用）
   useEffect(() => {
@@ -1446,6 +1461,7 @@ function App() {
               ),
             ]
           ),
+
           // 📋 予約一覧リスト（カード表示）
           h(
             "div",
@@ -1463,12 +1479,18 @@ function App() {
                   },
                   "該当する予約がありません"
                 )
-              : groupedAdminReservations.map((group) =>
-                  h(
+              : groupedAdminReservations.map((group) => {
+                  // ★ この日の合計人数を計算
+                  const groupTotalPeople = group.list.reduce(
+                    (sum, r) => sum + (r.peopleCount || 0),
+                    0
+                  );
+
+                  return h(
                     "div",
                     { key: group.date, style: { marginBottom: "14px" } },
-          
-                    // ★ 日付ラベル（ひとかたまりのタイトル）
+
+                    // ★ 日付ラベル＋日別合計人数の表示
                     h(
                       "div",
                       {
@@ -1481,10 +1503,10 @@ function App() {
                           marginBottom: "4px",
                         },
                       },
-                      group.date
+                      `${group.date}（合計 ${groupTotalPeople}名）`
                     ),
-          
-                    // ★ この日付の中だけのテーブル
+
+                    // ★ この日付の中だけのテーブル（1個だけ！）
                     h(
                       "table",
                       {
@@ -1503,7 +1525,6 @@ function App() {
                         h(
                           "tr",
                           null,
-                          // ※ 日付は上のラベルに出ているので不要
                           h(
                             "th",
                             {
@@ -1599,7 +1620,7 @@ function App() {
                             : index % 2 === 0
                             ? "#02150e"
                             : "transparent";
-          
+
                           return h(
                             "tr",
                             { key: r.id, style: { backgroundColor: rowBg } },
@@ -1679,8 +1700,8 @@ function App() {
                         })
                       )
                     )
-                  )
-                )
+                  );
+                })
           ),
 
           h(
