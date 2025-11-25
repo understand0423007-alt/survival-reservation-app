@@ -40,6 +40,9 @@ function App() {
   // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time, peopleCount }, ...] }
   const [reservationsByDate, setReservationsByDate] = useState({});
 
+  // ★ ログインユーザーのプロフィール（名前 / メール / チーム名）を保持
+  const [userProfile, setUserProfile] = useState(null);
+
   // 画像リスト（public/images 配下に置く想定）
   const images = [
     "/images/field1.png",
@@ -235,6 +238,28 @@ function App() {
         userId: user ? user.uid : null,
         createdAt: serverTimestamp(),
       });
+
+      // ★ ここでプロフィールを users コレクションに保存（上書き兼用）
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(
+          userRef,
+          {
+            name,
+            email,
+            groupName,
+          },
+          { merge: true } // 既存項目があってもマージ
+        );
+
+        // state 側の userProfile も更新しておくと次回の再描画で使える
+        setUserProfile((prev) => ({
+          ...(prev || {}),
+          name,
+          email,
+          groupName,
+        }));
+      }
 
       alert(
         `予約を受け付けました。\n\n` +
@@ -580,6 +605,44 @@ function App() {
       }));
   }, [filteredAdminReservations]);
 
+   // ★ 予約フォーム用：ログインユーザーのプロフィールを Firestore から取得
+   useEffect(() => {
+    if (!isReservePage) return;
+
+    const user = auth.currentUser;
+    if (!user) {
+      // 未ログイン状態なら何もしない
+      return;
+    }
+
+    const loadUserProfile = async () => {
+      try {
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setUserProfile({
+            name: data.name || "",
+            email: data.email || user.email || "",
+            groupName: data.groupName || "",
+          });
+        } else {
+          // プロフィール未作成なら、とりあえずメールだけ入れておく
+          setUserProfile({
+            name: "",
+            email: user.email || "",
+            groupName: "",
+          });
+        }
+      } catch (error) {
+        console.error("ユーザープロフィール取得エラー:", error);
+      }
+    };
+
+    loadUserProfile();
+  }, [isReservePage]);
+
   // Firestore から予約一覧を読み込む（カレンダー表示用）
   useEffect(() => {
     const fetchReservations = async () => {
@@ -869,10 +932,21 @@ function App() {
       )
     );
   } else if (isReservePage) {
-    // 予約フォーム or 確認画面
-    const initialName = reserveData ? reserveData.name : "";
-    const initialEmail = reserveData ? reserveData.email : "";
-    const initialGroupName = reserveData ? reserveData.groupName : "";
+    
+     // 予約フォーム or 確認画面
+    // ★ reserveData があればそれを優先／なければ userProfile を使う
+    const initialName = reserveData
+      ? reserveData.name
+      : userProfile?.name || "";
+
+    const initialEmail = reserveData
+      ? reserveData.email
+      : userProfile?.email || "";
+
+    const initialGroupName = reserveData
+      ? reserveData.groupName
+      : userProfile?.groupName || "";
+
     const initialDate = reserveData ? reserveData.date : reservedDate;
     const initialTime = reserveData ? reserveData.time : "";
     const initialPeopleCount = reserveData ? reserveData.peopleCount : "";
