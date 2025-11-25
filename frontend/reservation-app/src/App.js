@@ -177,6 +177,17 @@ function App() {
       return;
     }
 
+    // ★ ここで「午前の部 / 午後の部」を判定
+    let session = "";
+    if (time >= "09:00" && time <= "11:00") {
+      session = "午前の部";
+    } else if (time >= "13:00" && time <= "16:00") {
+      session = "午後の部";
+    } else {
+      alert("参加時間は 9:00〜11:00 または 13:00〜16:00 の間で選択してください。");
+      return;
+    }
+
     const rentalNeeded = rentalNeededValue === "yes";
 
     setReserveData({
@@ -187,6 +198,7 @@ function App() {
       time,
       peopleCount,
       rentalNeeded,
+      session, // ★ 追加
     });
     setReserveStep("confirm");
   };
@@ -203,6 +215,7 @@ function App() {
       time,
       peopleCount,
       rentalNeeded,
+      session, // ★ 追加
     } = reserveData;
 
     try {
@@ -217,7 +230,8 @@ function App() {
         time,
         peopleCount,
         rentalNeeded,
-        checkedIn: false,            // ★ 追加：最初は未チェックイン
+        session,                     // ★ 追加：午前の部 / 午後の部
+        checkedIn: false,
         userId: user ? user.uid : null,
         createdAt: serverTimestamp(),
       });
@@ -245,6 +259,7 @@ function App() {
               groupName: groupName,
               time: time,
               peopleCount: peopleCount,
+              session: session,   // ★ 午前の部 / 午後の部
             },
           ],
         };
@@ -459,6 +474,7 @@ function App() {
             time: data.time,
             peopleCount: data.peopleCount || 0,
             checkedIn: data.checkedIn || false,  // 未設定なら false 扱い
+            session: data.session || "",        // ★ 追加：午前の部 / 午後の部
           };
         });
 
@@ -549,6 +565,7 @@ function App() {
           const team = data.team;
           const time = data.time;
           const peopleCount = data.peopleCount;
+          const session = data.session;   // ★ 追加
 
           if (!map[date]) {
             map[date] = [];
@@ -559,6 +576,7 @@ function App() {
             groupName: team,
             time: time,
             peopleCount: peopleCount,
+            session: session,             // ★ 追加
           });
         });
 
@@ -603,7 +621,9 @@ function App() {
               ? `${r.groupName}（${r.peopleCount}名）`
               : r.groupName
           ),
-          h("div", { className: "reservation-time" }, r.time)
+          h("div", { className: "reservation-time" }, 
+          r.session ? `${r.time}（${r.session}）` : r.time   // ★ ここだけ変更
+          )
         )
       )
     );
@@ -856,6 +876,17 @@ function App() {
                   "span",
                   { className: "reserve-summary-value" },
                   reserveData.rentalNeeded ? "必要" : "不要"
+                )
+              ),
+              // ★ 参加区分（午前の部 / 午後の部）
+              h(
+                "div",
+                { className: "reserve-summary-row" },
+                h("span", { className: "reserve-summary-label" }, "参加区分"),
+                h(
+                  "span",
+                  { className: "reserve-summary-value" },
+                  reserveData.session
                 )
               ),
               // 日付
@@ -1479,7 +1510,11 @@ function App() {
                     "tr",
                     { key: r.id, style: { backgroundColor: rowBg } },
                     h("td", { style: { padding: "4px 6px" } }, r.date),
-                    h("td", { style: { padding: "4px 6px" } }, r.time),
+                    h(
+                      "td",
+                      { style: { padding: "4px 6px" } },
+                      r.session ? `${r.time}（${r.session}）` : r.time
+                    ),
                     h(
                       "td",
                       { style: { padding: "4px 6px", fontWeight: "bold" } },
