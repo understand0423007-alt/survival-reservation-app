@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import "./App.css";
 import { auth, db } from "./firebase";
 import {
@@ -12,9 +12,13 @@ import {
   serverTimestamp,
   deleteDoc,
   doc,
+  updateDoc, 
 } from "firebase/firestore";
 
 function App() {
+  // ★ MFDメニュー用 state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   // state ロジック
   const [currentYear, setCurrentYear] = useState(2025);
   const [currentMonth, setCurrentMonth] = useState(10); // 0=Jan, 10=Nov
@@ -22,6 +26,9 @@ function App() {
 
   // 管理者画面用：予約一覧
   const [adminReservations, setAdminReservations] = useState([]);
+
+  // ★ 管理者画面用：検索ワード
+  const [adminSearchTerm, setAdminSearchTerm] = useState("");
 
   // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time, peopleCount }, ...] }
   const [reservationsByDate, setReservationsByDate] = useState({});
@@ -56,12 +63,12 @@ function App() {
     const form = event.target;
     const email = form.elements.email.value;
     const password = form.elements.password.value;
-
+  
     if (!email || !password) {
       alert("メールアドレスとパスワードを入力してください。");
       return;
     }
-
+  
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -69,12 +76,22 @@ function App() {
         password
       );
       console.log("ログインユーザー:", userCredential.user);
-
+  
       const reservedDate = sessionStorage.getItem("reserveDate");
       console.log("ログイン後に使う日付: ", reservedDate);
-
+  
       alert(email + " でログインしました。");
-      window.location.href = "/reserve";
+  
+      // ★ 管理者判定（ここに管理者用メールアドレスを設定）
+      const adminEmail = "admin@gmail.com";  // ← 実際の管理者メールに変更してください
+  
+      if (email === adminEmail) {
+        // 管理者は管理画面へ
+        window.location.href = "/admin";
+      } else {
+        // 一般ユーザーは予約フォームへ
+        window.location.href = "/reserve";
+      }
     } catch (error) {
       console.error("ログインエラー:", error);
       alert("ログインに失敗しました: " + error.message);
@@ -193,6 +210,7 @@ function App() {
         time,
         peopleCount,
         rentalNeeded,
+        checkedIn: false,            // ★ 追加：最初は未チェックイン
         userId: user ? user.uid : null,
         createdAt: serverTimestamp(),
       });
@@ -261,6 +279,39 @@ function App() {
     } catch (error) {
       console.error("予約削除エラー:", error);
       alert("予約の削除に失敗しました: " + error.message);
+    }
+  };
+
+  // 管理者画面：チェックイン状態のトグル
+  const handleToggleCheckIn = async (id, currentCheckedIn) => {
+    try {
+      // Firestore の値を反転
+      await updateDoc(doc(db, "reservations", id), {
+        checkedIn: !currentCheckedIn,
+      });
+
+      // 管理画面の一覧を更新
+      setAdminReservations((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, checkedIn: !currentCheckedIn } : r
+        )
+      );
+
+      // カレンダー表示用のデータも更新
+      setReservationsByDate((prev) => {
+        const newMap = { ...prev };
+        for (const date in newMap) {
+          newMap[date] = newMap[date].map((item) =>
+            item.id === id
+              ? { ...item, checkedIn: !currentCheckedIn }
+              : item
+          );
+        }
+        return newMap;
+      });
+    } catch (error) {
+      console.error("チェックイン更新エラー:", error);
+      alert("チェックイン状態の更新に失敗しました: " + error.message);
     }
   };
 
@@ -375,6 +426,7 @@ function App() {
             date: data.date,
             time: data.time,
             peopleCount: data.peopleCount || 0,
+            checkedIn: data.checkedIn || false,  // 未設定なら false 扱い
           };
         });
 
@@ -391,6 +443,39 @@ function App() {
 
     fetchAdminReservations();
   }, [isAdminPage]);
+
+  // ★ 管理者画面：検索フィルタ済みの配列
+  const filteredAdminReservations = adminReservations.filter((r) => {
+    // 何も入力されていなければ全件表示
+    if (!adminSearchTerm) return true;
+
+    const keyword = adminSearchTerm.toLowerCase();
+
+    const name = (r.name || "").toLowerCase();
+    const email = (r.email || "").toLowerCase();
+    const team = (r.team || "").toLowerCase();
+    const date = (r.date || "").toLowerCase();
+    const time = (r.time || "").toLowerCase();
+
+    // 部分一致（名前 / メール / チーム名 / 日付 / 時間）
+    return (
+      name.includes(keyword) ||
+      email.includes(keyword) ||
+      team.includes(keyword) ||
+      date.includes(keyword) ||
+      time.includes(keyword)
+    );
+  });
+
+    // ★ 予約サマリー（件数・チェックイン数・人数合計）
+    const adminTotalCount = filteredAdminReservations.length;
+    const adminCheckedInCount = filteredAdminReservations.filter(
+      (r) => r.checkedIn
+    ).length;
+    const adminTotalPeople = filteredAdminReservations.reduce(
+      (sum, r) => sum + (r.peopleCount || 0),
+      0
+    );
 
   // Firestore から予約一覧を読み込む（カレンダー表示用）
   useEffect(() => {
@@ -972,11 +1057,102 @@ function App() {
           h(
             "p",
             { className: "login-subtitle" },
-            "予約一覧を確認・削除できます"
+            "予約の検索・チェックイン・削除ができます"
           ),
+
+          // 🔍 検索ボックス
           h(
             "div",
-            { style: { maxHeight: "400px", overflowY: "auto" } },
+            {
+              style: {
+                marginBottom: "12px",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "8px",
+                flexWrap: "wrap",
+              },
+            },
+            h("input", {
+              type: "text",
+              placeholder: "名前 / メール / チーム名 / 日付 で検索...",
+              value: adminSearchTerm,
+              onChange: (e) => setAdminSearchTerm(e.target.value),
+              style: {
+                padding: "6px 10px",
+                fontSize: "12px",
+                minWidth: "200px",
+                flex: "1 1 220px",
+                backgroundColor: "#021b12",
+                border: "1px solid #1f5a33",
+                color: "#A9D9A7",
+              },
+            })
+          ),
+
+          // 📊 サマリー表示
+          h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                gap: "8px",
+                marginBottom: "8px",
+                flexWrap: "wrap",
+              },
+            },
+            [
+              h(
+                "div",
+                {
+                  key: "summary-total",
+                  style: {
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #29593A",
+                    fontSize: "11px",
+                    color: "#A9D9A7",
+                    backgroundColor: "#02150e",
+                  },
+                },
+                `予約件数: ${adminTotalCount}件`
+              ),
+              h(
+                "div",
+                {
+                  key: "summary-checked",
+                  style: {
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #29593A",
+                    fontSize: "11px",
+                    color: "#A9D9A7",
+                    backgroundColor: "#02150e",
+                  },
+                },
+                `チェックイン済: ${adminCheckedInCount}件`
+              ),
+              h(
+                "div",
+                {
+                  key: "summary-people",
+                  style: {
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #29593A",
+                    fontSize: "11px",
+                    color: "#A9D9A7",
+                    backgroundColor: "#02150e",
+                  },
+                },
+                `合計人数: ${adminTotalPeople}名`
+              ),
+            ]
+          ),
+
+          // 📋 予約一覧テーブル
+          h(
+            "div",
+            { style: { maxHeight: "70vh", overflowY: "auto" } },
             h(
               "table",
               {
@@ -992,44 +1168,178 @@ function App() {
                 h(
                   "tr",
                   null,
-                  ["名前", "メール", "チーム名", "日付", "時間", "人数", "操作"].map(
-                    (label) =>
-                      h(
-                        "th",
-                        {
-                          key: label,
-                          style: {
-                            borderBottom: "1px solid #29593A",
-                            padding: "4px 6px",
-                            textAlign: "left",
-                            color: "#A9D9A7",
-                          },
-                        },
-                        label
-                      )
+                  // 列の順番を 日付 → 時間 → チーム → 名前 → メール → 人数 → 状態 → 操作 に変更
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "日付"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "時間"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "チーム名"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "名前"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "メール"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "right",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "人数"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "状態"
+                  ),
+                  h(
+                    "th",
+                    {
+                      style: {
+                        borderBottom: "1px solid #29593A",
+                        padding: "4px 6px",
+                        textAlign: "left",
+                        color: "#A9D9A7",
+                      },
+                    },
+                    "操作"
                   )
                 )
               ),
               h(
                 "tbody",
                 null,
-                adminReservations.map((r) =>
-                  h(
+                // 行ごとに色分け（ゼブラ行＋チェックイン行は少し濃い）
+                filteredAdminReservations.map((r, index) => {
+                  const rowBg = r.checkedIn
+                    ? "#062917" // チェックイン済みは少し濃い緑
+                    : index % 2 === 0
+                    ? "#02150e" // 偶数行
+                    : "transparent"; // 奇数行
+
+                  return h(
                     "tr",
-                    { key: r.id },
-                    h("td", { style: { padding: "4px 6px" } }, r.name),
-                    h("td", { style: { padding: "4px 6px" } }, r.email),
-                    h("td", { style: { padding: "4px 6px" } }, r.team),
+                    { key: r.id, style: { backgroundColor: rowBg } },
                     h("td", { style: { padding: "4px 6px" } }, r.date),
                     h("td", { style: { padding: "4px 6px" } }, r.time),
                     h(
                       "td",
-                      { style: { padding: "4px 6px" } },
+                      { style: { padding: "4px 6px", fontWeight: "bold" } },
+                      r.team
+                    ),
+                    h("td", { style: { padding: "4px 6px" } }, r.name),
+                    h(
+                      "td",
+                      {
+                        style: {
+                          padding: "4px 6px",
+                          maxWidth: "180px",
+                          wordBreak: "break-all",
+                        },
+                      },
+                      r.email
+                    ),
+                    h(
+                      "td",
+                      {
+                        style: {
+                          padding: "4px 6px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                        },
+                      },
                       r.peopleCount ? `${r.peopleCount}名` : "-"
                     ),
                     h(
                       "td",
                       { style: { padding: "4px 6px" } },
+                      r.checkedIn
+                        ? h(
+                            "span",
+                            { className: "status-badge checked" },
+                            "チェックイン済"
+                          )
+                        : h(
+                            "span",
+                            { className: "status-badge" },
+                            "未チェックイン"
+                          )
+                    ),
+                    h(
+                      "td",
+                      { style: { padding: "4px 6px", whiteSpace: "nowrap" } },
+                      h(
+                        "button",
+                        {
+                          className: "reserve-edit-button",
+                          type: "button",
+                          onClick: () =>
+                            handleToggleCheckIn(r.id, r.checkedIn),
+                          style: { marginRight: "6px" },
+                        },
+                        r.checkedIn ? "戻す" : "チェックイン"
+                      ),
                       h(
                         "button",
                         {
@@ -1040,11 +1350,30 @@ function App() {
                         "削除"
                       )
                     )
+                  );
+                }),
+                // 🔻 検索して0件のとき
+                filteredAdminReservations.length === 0 &&
+                  h(
+                    "tr",
+                    { key: "no-results" },
+                    h(
+                      "td",
+                      {
+                        colSpan: 8,
+                        style: {
+                          padding: "8px 6px",
+                          textAlign: "center",
+                          color: "#A9D9A7",
+                        },
+                      },
+                      "該当する予約がありません"
+                    )
                   )
-                )
               )
             )
           ),
+
           h(
             "button",
             {
@@ -1064,37 +1393,14 @@ function App() {
     mainContent = h(
       "div",
       { className: "app" },
+
       h(
         "header",
         { className: "app-header" },
         h("h1", { className: "app-title" }, "SURE SHOT"),
-        h("p", { className: "app-subtitle" }, "サバゲーフィールドシュアショット"),
-        // 管理者ボタン
-        h(
-          "button",
-          {
-            className: "admin-button",
-            onClick: () => {
-              const pass = prompt("管理者パスワードを入力してください");
-              if (pass === "admin123") {
-                window.location.href = "/admin";
-              } else {
-                alert("パスワードが違います");
-              }
-            },
-            style: {
-              marginLeft: "auto",
-              backgroundColor: "#224422",
-              padding: "6px 12px",
-              borderRadius: "4px",
-              color: "#cdecc1",
-              border: "1px solid #447744",
-              cursor: "pointer",
-            },
-          },
-          "管理者"
-        )
+        h("p", { className: "app-subtitle" }, "サバゲーフィールドシュアショット")
       ),
+
       h(
         "div",
         { className: "calendar-container" },
@@ -1252,33 +1558,65 @@ function App() {
   return h(
     "div",
     { className: "app-root app" },
-  
-    // ★ 左上に固定表示するプルダウン
+
+    // ★ 左上の MFD風メニュー
     h(
       "div",
-      { className: "floating-dropdown-wrapper" },
-      h(
-        "select",
-        {
-          className: "floating-dropdown",
-          onChange: (e) => {
-            const value = e.target.value;
-            if (value === "login") {
-              window.location.href = "/login";
-            }
-            if (value === "top") {
-              window.location.href = "/";
-            }
+      { className: "floating-dropdown-wrapper", ref: menuRef },
+      [
+        // MENU ボタン（押すと開閉）
+        h(
+          "button",
+          {
+            className: "floating-menu-button",
+            type: "button",
+            onClick: (e) => {
+              e.stopPropagation();          // 自分のクリックで即閉じないように
+              setIsMenuOpen((prev) => !prev);
+            },
           },
-        },
-        [
-          h("option", { value: "" }, "MENU"),
-          h("option", { value: "top"  }, "TOP"),
-          h("option", { value: "login" }, "LOGIN"),
-        ]
-      )
+          "MENU"
+        ),
+        // スライドして出てくるパネル
+        h(
+          "div",
+          {
+            className:
+              "floating-menu-panel" + (isMenuOpen ? " open" : ""),
+            onClick: (e) => e.stopPropagation(), // 中をクリックしても閉じないように
+          },
+          [
+            h(
+              "button",
+              {
+                key: "top",
+                className: "floating-menu-item",
+                type: "button",
+                onClick: () => {
+                  setIsMenuOpen(false);
+                  window.location.href = "/";
+                },
+              },
+              "TOP"
+            ),
+            h(
+              "button",
+              {
+                key: "login",
+                className: "floating-menu-item",
+                type: "button",
+                onClick: () => {
+                  setIsMenuOpen(false);
+                  window.location.href = "/login";
+                },
+              },
+              "LOGIN"
+            ),
+          ]
+        ),
+      ]
     ),
-  
+
     // 背景画像
     h("img", {
       src: images[currentImageIndex],
@@ -1288,7 +1626,7 @@ function App() {
       },
       alt: "background slide",
     }),
-  
+
     // 画面本体
     mainContent
   );

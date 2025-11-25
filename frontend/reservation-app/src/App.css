@@ -848,3 +848,114 @@ body {
   font-family: "Consolas", "Courier New", monospace;
   font-size: 12px;
 }
+
+/* メニューのボタン（MFDのソフトキーっぽく） */
+.floating-menu-button {
+  background: rgba(10, 20, 10, 0.85);
+  color: #8fff8f;
+  border: 2px solid #2aff2a;
+  padding: 6px 16px;
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-family: "Consolas", "Courier New", monospace;
+  text-transform: uppercase;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.25);
+  transition: 0.15s ease;
+}
+
+.floating-menu-button:hover,
+.floating-menu-button:focus {
+  border-color: #74ff74;
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.45);
+  background: rgba(15, 35, 15, 0.95);
+}
+
+/* スライドパネル本体（閉じた状態） */
+.floating-menu-panel {
+  margin-top: 6px;
+  background: rgba(5, 15, 5, 0.95);
+  border: 1px solid #2aff2a;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.35);
+  border-radius: 4px;
+  padding: 4px 0;
+
+  /* アニメーション用（スケールYでヌルッと） */
+  max-height: 0;              /* 一応閉じている間は高さゼロ */
+  overflow: hidden;
+  opacity: 0;
+  transform: scaleY(0.7);     /* ちょっと潰れた状態から始める */
+  transform-origin: top;      /* 上から開く */
+  transition:
+    transform 0.25s cubic-bezier(0.19, 1, 0.22, 1), /* ぬるっと感 */
+    opacity 0.25s ease-out,
+    max-height 0.25s ease-out;
+  will-change: transform, opacity;
+}
+
+/* 開いた状態：ふわっとスケールアップ＋フェードイン */
+.floating-menu-panel.open {
+  max-height: 200px;          /* メニューの高さより少し大きめに */
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* メニューの各ボタン */
+.floating-menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  color: #cdecc1;
+  font-size: 12px;
+  font-family: "Consolas", "Courier New", monospace;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.floating-menu-item:hover {
+  background: rgba(20, 60, 30, 0.9);
+  color: #8fff8f;
+}
+
+/* MENU 内のテキストを中央揃え */
+.floating-dropdown option {
+  text-align: center;
+}
+
+.floating-dropdown option {
+  text-align: center;
+  padding: 6px 0;
+  letter-spacing: 2px;
+}
+
+/* 管理画面：チェックイン状態バッジ */
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid #555;
+  font-size: 10px;
+  color: #cdecc1;
+}
+
+.status-badge.checked {
+  border-color: #2dd66b;
+  background: rgba(20, 80, 40, 0.9);
+  color: #8cff6a;
+}
+
+/* --- PCサイズではログインカードを広げる（管理画面も対象） --- */
+@media (min-width: 769px) {
+  .login-page {
+    align-items: flex-start;       /* 画面の上に寄せる */
+  }
+
+  .login-card {
+    max-width: 1000px;             /* 横に広げて一覧を見やすく */
+  }
+}
