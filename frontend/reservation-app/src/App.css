@@ -1073,3 +1073,25 @@ body {
   }
 }
 /* === ここまでスマホ向けレイアウト調整 ====================== */
+
+/* ◆ カレンダーのマスの色（人数に応じて） */
+.day-cell.capacity-low {
+  /* 1〜20人：少なめ → 明るめの緑（空きあり） */
+  background: rgba(46, 204, 113, 0.35);   /* ← background に変更 */
+  border-color: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+}
+
+.day-cell.capacity-mid {
+  /* 21〜35人：やや多い → 目立つオレンジ（混雑） */
+  background: rgba(241, 196, 15, 0.45);  /* ← オレンジ寄りの黄色 */
+  border-color: #f1c40f;
+  box-shadow: 0 0 6px rgba(241, 196, 15, 0.5);
+}
+
+.day-cell.capacity-full {
+  /* 36〜40人：ほぼ満員 → 赤（満員近い） */
+  background: rgba(231, 76, 60, 0.55);   /* ← はっきり赤系 */
+  border-color: #e74c3c;
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.7);
+}
