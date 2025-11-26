@@ -17,7 +17,13 @@ import {
   setDoc,      // ★ 追加：ドキュメントを保存（作成/上書き）
 } from "firebase/firestore";
 
+// ★ 管理者のメールアドレス
+const ADMIN_EMAIL = "admin@gmail.com";
+// ★ ここで共通定数として定義
+const ADMIN_USER_UID = "ST9JR8hBt4fKA5BambsPslt6ZuJ2";
+
 function App() {
+  
   // ★ MFDメニュー用 state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -32,10 +38,10 @@ function App() {
   // ★ 管理者画面用：検索ワード
   const [adminSearchTerm, setAdminSearchTerm] = useState("");
 
-    // ★ 管理者画面用：営業時間（開店/閉店時間）
-    const [businessOpenTime, setBusinessOpenTime] = useState("09:00");
-    const [businessCloseTime, setBusinessCloseTime] = useState("17:00");
-    const [businessHoursSaving, setBusinessHoursSaving] = useState(false);
+  // ★ 管理者画面用：営業時間（開店/閉店時間）
+  const [businessOpenTime, setBusinessOpenTime] = useState("09:00");
+  const [businessCloseTime, setBusinessCloseTime] = useState("17:00");
+  const [businessHoursSaving, setBusinessHoursSaving] = useState(false);
 
   // Firestore から読み込んだ予約データ { "YYYY-MM-DD": [{ id, groupName, time, peopleCount }, ...] }
   const [reservationsByDate, setReservationsByDate] = useState({});
@@ -63,6 +69,33 @@ function App() {
   const isReservePage = window.location.pathname === "/reserve";
   const isAdminPage = window.location.pathname === "/admin";
 
+  // ★ 追加：管理者チェック用 state
+  const [adminAuthChecked, setAdminAuthChecked] = useState(false);
+  const [isAdminAuthorized, setIsAdminAuthorized] = useState(false);
+
+  // ★ admin ページ用ガード
+  useEffect(() => {
+    if (!isAdminPage) return;
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      const ok = !!user && user.uid === ADMIN_USER_UID;
+
+      setIsAdminAuthorized(ok);
+      setAdminAuthChecked(true);
+
+      if (!ok) {
+        alert("管理者としてログインしてください。");
+        window.location.href = "/login";
+      }
+    });
+
+    return () => {
+      setAdminAuthChecked(false);
+      setIsAdminAuthorized(false);
+      unsubscribe();
+    };
+  }, [isAdminPage]);
+
   // 予約フォーム → 確認画面のステップ管理
   const [reserveStep, setReserveStep] = useState("form"); // "form" or "confirm"
   const [reserveData, setReserveData] = useState(null); // { name, email, groupName, date, time, peopleCount, rentalNeeded }
@@ -85,21 +118,12 @@ function App() {
         email,
         password
       );
-      console.log("ログインユーザー:", userCredential.user);
-  
-      const reservedDate = sessionStorage.getItem("reserveDate");
-      console.log("ログイン後に使う日付: ", reservedDate);
-  
+
       alert(email + " でログインしました。");
-  
-      // ★ 管理者判定（ここに管理者用メールアドレスを設定）
-      const adminEmail = "admin@gmail.com";  // ← 実際の管理者メールに変更してください
-  
-      if (email === adminEmail) {
-        // 管理者は管理画面へ
+
+      if (email === ADMIN_EMAIL) {
         window.location.href = "/admin";
       } else {
-        // 一般ユーザーは予約フォームへ
         window.location.href = "/reserve";
       }
     } catch (error) {
@@ -1291,507 +1315,580 @@ function App() {
     }
   } else if (isAdminPage) {
     // 管理者画面
-    mainContent = h(
-      "div",
-      { className: "app" },
-      h(
+
+    // まだ権限チェックが終わっていない間は「確認中」だけ表示
+    if (!adminAuthChecked) {
+      mainContent = h(
         "div",
-        { className: "login-page" },
+        { className: "app" },
         h(
           "div",
-          { className: "login-card" },
-          h("h1", { className: "login-title" }, "予約一覧（管理者）"),
-          h(
-            "p",
-            { className: "login-subtitle" },
-            "予約の検索・チェックイン・削除ができます"
-          ),
-
-          // ★ 営業時間設定パネル（ここを追加）
+          { className: "login-page" },
           h(
             "div",
-            {
-              style: {
-                marginBottom: "12px",
-                padding: "8px 10px",
-                borderRadius: "8px",
-                border: "1px solid #29593A",
-                background: "rgba(4, 24, 14, 0.95)",
-                fontSize: "12px",
-              },
-            },
-            [
-              h(
-                "div",
-                {
-                  key: "title",
-                  style: {
-                    marginBottom: "6px",
-                    fontWeight: "600",
-                    color: "#A9D9A7",
-                  },
-                },
-                "営業時間設定"
-              ),
-              h(
-                "div",
-                {
-                  key: "fields",
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    flexWrap: "wrap",
-                  },
-                },
-                [
-                  h(
-                    "label",
-                    {
-                      key: "open",
-                      style: {
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      },
-                    },
-                    [
-                      h(
-                        "span",
-                        { style: { minWidth: "56px" } },
-                        "開店"
-                      ),
-                      h("input", {
-                        type: "time",
-                        value: businessOpenTime,
-                        onChange: (e) =>
-                          setBusinessOpenTime(e.target.value),
-                        style: {
-                          padding: "4px 6px",
-                          backgroundColor: "#02150e",
-                          border: "1px solid #1f5a33",
-                          color: "#E5F7E0",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                        },
-                      }),
-                    ]
-                  ),
-                  h(
-                    "label",
-                    {
-                      key: "close",
-                      style: {
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      },
-                    },
-                    [
-                      h(
-                        "span",
-                        { style: { minWidth: "56px" } },
-                        "閉店"
-                      ),
-                      h("input", {
-                        type: "time",
-                        value: businessCloseTime,
-                        onChange: (e) =>
-                          setBusinessCloseTime(e.target.value),
-                        style: {
-                          padding: "4px 6px",
-                          backgroundColor: "#02150e",
-                          border: "1px solid #1f5a33",
-                          color: "#E5F7E0",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                        },
-                      }),
-                    ]
-                  ),
-                  h(
-                    "button",
-                    {
-                      key: "save",
-                      type: "button",
-                      onClick: handleSaveBusinessHours,
-                      disabled: businessHoursSaving,
-                      style: {
-                        padding: "6px 12px",
-                        fontSize: "11px",
-                        borderRadius: "6px",
-                        border: "1px solid #2DD66B",
-                        background: "rgba(5, 36, 19, 0.95)",
-                        color: "#CFFFE1",
-                        cursor: "pointer",
-                        marginLeft: "4px",
-                      },
-                    },
-                    businessHoursSaving ? "保存中..." : "保存する"
-                  ),
-                ]
-              ),
-              h(
-                "div",
-                {
-                  key: "note",
-                  style: {
-                    marginTop: "4px",
-                    color: "#7BAF7E",
-                    fontSize: "11px",
-                  },
-                },
-                "※ 現在は予約フォームの時間制限には未反映（次のステップで反映可能）"
-              ),
-            ]
-          ),
-
-
-          // 🔍 検索ボックス
-          h(
-            "div",
-            {
-              style: {
-                marginBottom: "12px",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "8px",
-                flexWrap: "wrap",
-              },
-            },
-            h("input", {
-              type: "text",
-              placeholder: "名前 / メール / チーム名 / 日付 で検索...",
-              value: adminSearchTerm,
-              onChange: (e) => setAdminSearchTerm(e.target.value),
-              style: {
-                padding: "6px 10px",
-                fontSize: "12px",
-                minWidth: "200px",
-                flex: "1 1 220px",
-                backgroundColor: "#021b12",
-                border: "1px solid #1f5a33",
-                color: "#A9D9A7",
-              },
-            })
-          ),
-
-          // 📊 サマリー表示
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                gap: "8px",
-                marginBottom: "8px",
-                flexWrap: "wrap",
-              },
-            },
-            [
-              h(
-                "div",
-                {
-                  key: "summary-total",
-                  style: {
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #29593A",
-                    fontSize: "11px",
-                    color: "#A9D9A7",
-                    backgroundColor: "#02150e",
-                  },
-                },
-                `予約件数: ${adminTotalCount}件`
-              ),
-              h(
-                "div",
-                {
-                  key: "summary-checked",
-                  style: {
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #29593A",
-                    fontSize: "11px",
-                    color: "#A9D9A7",
-                    backgroundColor: "#02150e",
-                  },
-                },
-                `チェックイン済: ${adminCheckedInCount}件`
-              ),
-              h(
-                "div",
-                {
-                  key: "summary-people",
-                  style: {
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #29593A",
-                    fontSize: "11px",
-                    color: "#A9D9A7",
-                    backgroundColor: "#02150e",
-                  },
-                },
-                `合計人数: ${adminTotalPeople}名`
-              ),
-            ]
-          ),
-
-          // 📋 予約一覧リスト（カード表示）
-          h(
-            "div",
-            { style: { maxHeight: "70vh", overflowY: "auto" } },
-            groupedAdminReservations.length === 0
-              ? h(
-                  "div",
-                  {
-                    style: {
-                      padding: "8px 6px",
-                      textAlign: "center",
-                      color: "#A9D9A7",
-                      fontSize: "12px",
-                    },
-                  },
-                  "該当する予約がありません"
-                )
-              : groupedAdminReservations.map((group) => {
-                  // ★ この日の合計人数を計算
-                  const groupTotalPeople = group.list.reduce(
-                    (sum, r) => sum + (r.peopleCount || 0),
-                    0
-                  );
-
-                  return h(
-                    "div",
-                    { key: group.date, style: { marginBottom: "14px" } },
-
-                    // ★ 日付ラベル＋日別合計人数の表示
-                    h(
-                      "div",
-                      {
-                        style: {
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#CFFFE1",
-                          borderLeft: "3px solid #3EF68A",
-                          paddingLeft: "8px",
-                          marginBottom: "4px",
-                        },
-                      },
-                      `${group.date}（合計 ${groupTotalPeople}名）`
-                    ),
-
-                    // ★ この日付の中だけのテーブル（1個だけ！）
-                    h(
-                      "table",
-                      {
-                        style: {
-                          width: "100%",
-                          fontSize: "12px",
-                          borderCollapse: "collapse",
-                          backgroundColor: "rgba(2,21,14,0.9)",
-                          borderRadius: "6px",
-                          overflow: "hidden",
-                        },
-                      },
-                      h(
-                        "thead",
-                        null,
-                        h(
-                          "tr",
-                          null,
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "時間"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "チーム名"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "名前"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "メール"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "right",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "人数"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "状態"
-                          ),
-                          h(
-                            "th",
-                            {
-                              style: {
-                                borderBottom: "1px solid #29593A",
-                                padding: "4px 6px",
-                                textAlign: "left",
-                                color: "#A9D9A7",
-                              },
-                            },
-                            "操作"
-                          )
-                        )
-                      ),
-                      h(
-                        "tbody",
-                        null,
-                        group.list.map((r, index) => {
-                          const rowBg = r.checkedIn
-                            ? "#062917"
-                            : index % 2 === 0
-                            ? "#02150e"
-                            : "transparent";
-
-                          return h(
-                            "tr",
-                            { key: r.id, style: { backgroundColor: rowBg } },
-                            h(
-                              "td",
-                              { style: { padding: "4px 6px" } },
-                              r.session ? `${r.time}（${r.session}）` : r.time
-                            ),
-                            h(
-                              "td",
-                              { style: { padding: "4px 6px", fontWeight: "bold" } },
-                              r.team
-                            ),
-                            h("td", { style: { padding: "4px 6px" } }, r.name),
-                            h(
-                              "td",
-                              {
-                                style: {
-                                  padding: "4px 6px",
-                                  maxWidth: "180px",
-                                  wordBreak: "break-all",
-                                },
-                              },
-                              r.email
-                            ),
-                            h(
-                              "td",
-                              {
-                                style: {
-                                  padding: "4px 6px",
-                                  textAlign: "right",
-                                  whiteSpace: "nowrap",
-                                },
-                              },
-                              r.peopleCount ? `${r.peopleCount}名` : "-"
-                            ),
-                            h(
-                              "td",
-                              { style: { padding: "4px 6px" } },
-                              r.checkedIn
-                                ? h(
-                                    "span",
-                                    { className: "status-badge checked" },
-                                    "チェックイン済"
-                                  )
-                                : h(
-                                    "span",
-                                    { className: "status-badge" },
-                                    "未チェックイン"
-                                  )
-                            ),
-                            h(
-                              "td",
-                              { style: { padding: "4px 6px", whiteSpace: "nowrap" } },
-                              h(
-                                "button",
-                                {
-                                  className: "reserve-edit-button",
-                                  type: "button",
-                                  onClick: () =>
-                                    handleToggleCheckIn(r.id, r.checkedIn),
-                                  style: { marginRight: "6px" },
-                                },
-                                r.checkedIn ? "戻す" : "チェックイン"
-                              ),
-                              h(
-                                "button",
-                                {
-                                  className: "reserve-edit-button",
-                                  type: "button",
-                                  onClick: () => handleDeleteReservation(r.id),
-                                },
-                                "削除"
-                              )
-                            )
-                          );
-                        })
-                      )
-                    )
-                  );
-                })
-          ),
-
-          h(
-            "button",
-            {
-              type: "button",
-              className: "login-back-button",
-              onClick: () => {
-                window.location.href = "/";
-              },
-            },
-            "← カレンダーに戻る"
+            { className: "login-card" },
+            h("h1", { className: "login-title" }, "管理者ページ"),
+            h(
+              "p",
+              { className: "login-subtitle" },
+              "権限を確認しています..."
+            )
           )
         )
-      )
-    );
+      );
+    }
+    // 権限がない → useEffect で /login に飛ばすが、一応簡単な文言を出す
+    else if (!isAdminAuthorized) {
+      mainContent = h(
+        "div",
+        { className: "app" },
+        h(
+          "div",
+          { className: "login-page" },
+          h(
+            "div",
+            { className: "login-card" },
+            h("h1", { className: "login-title" }, "管理者ページ"),
+            h(
+              "p",
+              { className: "login-subtitle" },
+              "ログイン画面へ移動しています..."
+            )
+          )
+        )
+      );
+    }
+    // ★ 管理者と確認できた人だけ、本来の管理画面を表示
+    else {
+      mainContent = h(
+        "div",
+        { className: "app" },
+        h(
+          "div",
+          { className: "login-page" },
+          h(
+            "div",
+            { className: "login-card" },
+            h("h1", { className: "login-title" }, "予約一覧（管理者）"),
+            h(
+              "p",
+              { className: "login-subtitle" },
+              "予約の検索・チェックイン・削除ができます"
+            ),
+
+            // ★ 営業時間設定パネル
+            h(
+              "div",
+              {
+                style: {
+                  marginBottom: "12px",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #29593A",
+                  background: "rgba(4, 24, 14, 0.95)",
+                  fontSize: "12px",
+                },
+              },
+              [
+                h(
+                  "div",
+                  {
+                    key: "title",
+                    style: {
+                      marginBottom: "6px",
+                      fontWeight: "600",
+                      color: "#A9D9A7",
+                    },
+                  },
+                  "営業時間設定"
+                ),
+                h(
+                  "div",
+                  {
+                    key: "fields",
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      flexWrap: "wrap",
+                    },
+                  },
+                  [
+                    h(
+                      "label",
+                      {
+                        key: "open",
+                        style: {
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        },
+                      },
+                      [
+                        h(
+                          "span",
+                          { style: { minWidth: "56px" } },
+                          "開店"
+                        ),
+                        h("input", {
+                          type: "time",
+                          value: businessOpenTime,
+                          onChange: (e) =>
+                            setBusinessOpenTime(e.target.value),
+                          style: {
+                            padding: "4px 6px",
+                            backgroundColor: "#02150e",
+                            border: "1px solid #1f5a33",
+                            color: "#E5F7E0",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                          },
+                        }),
+                      ]
+                    ),
+                    h(
+                      "label",
+                      {
+                        key: "close",
+                        style: {
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        },
+                      },
+                      [
+                        h(
+                          "span",
+                          { style: { minWidth: "56px" } },
+                          "閉店"
+                        ),
+                        h("input", {
+                          type: "time",
+                          value: businessCloseTime,
+                          onChange: (e) =>
+                            setBusinessCloseTime(e.target.value),
+                          style: {
+                            padding: "4px 6px",
+                            backgroundColor: "#02150e",
+                            border: "1px solid #1f5a33",
+                            color: "#E5F7E0",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                          },
+                        }),
+                      ]
+                    ),
+                    h(
+                      "button",
+                      {
+                        key: "save",
+                        type: "button",
+                        onClick: handleSaveBusinessHours,
+                        disabled: businessHoursSaving,
+                        style: {
+                          padding: "6px 12px",
+                          fontSize: "11px",
+                          borderRadius: "6px",
+                          border: "1px solid #2DD66B",
+                          background: "rgba(5, 36, 19, 0.95)",
+                          color: "#CFFFE1",
+                          cursor: "pointer",
+                          marginLeft: "4px",
+                        },
+                      },
+                      businessHoursSaving ? "保存中..." : "保存する"
+                    ),
+                  ]
+                ),
+                h(
+                  "div",
+                  {
+                    key: "note",
+                    style: {
+                      marginTop: "4px",
+                      color: "#7BAF7E",
+                      fontSize: "11px",
+                    },
+                  },
+                  "※ 現在は予約フォームの時間制限には未反映（次のステップで反映可能）"
+                ),
+              ]
+            ),
+
+            // 🔍 検索ボックス
+            h(
+              "div",
+              {
+                style: {
+                  marginBottom: "12px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                },
+              },
+              h("input", {
+                type: "text",
+                placeholder: "名前 / メール / チーム名 / 日付 で検索...",
+                value: adminSearchTerm,
+                onChange: (e) => setAdminSearchTerm(e.target.value),
+                style: {
+                  padding: "6px 10px",
+                  fontSize: "12px",
+                  minWidth: "200px",
+                  flex: "1 1 220px",
+                  backgroundColor: "#021b12",
+                  border: "1px solid #1f5a33",
+                  color: "#A9D9A7",
+                },
+              })
+            ),
+
+            // 📊 サマリー表示
+            h(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  gap: "8px",
+                  marginBottom: "8px",
+                  flexWrap: "wrap",
+                },
+              },
+              [
+                h(
+                  "div",
+                  {
+                    key: "summary-total",
+                    style: {
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #29593A",
+                      fontSize: "11px",
+                      color: "#A9D9A7",
+                      backgroundColor: "#02150e",
+                    },
+                  },
+                  `予約件数: ${adminTotalCount}件`
+                ),
+                h(
+                  "div",
+                  {
+                    key: "summary-checked",
+                    style: {
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #29593A",
+                      fontSize: "11px",
+                      color: "#A9D9A7",
+                      backgroundColor: "#02150e",
+                    },
+                  },
+                  `チェックイン済: ${adminCheckedInCount}件`
+                ),
+                h(
+                  "div",
+                  {
+                    key: "summary-people",
+                    style: {
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #29593A",
+                      fontSize: "11px",
+                      color: "#A9D9A7",
+                      backgroundColor: "#02150e",
+                    },
+                  },
+                  `合計人数: ${adminTotalPeople}名`
+                ),
+              ]
+            ),
+
+            // 📋 予約一覧リスト（カード表示）
+            h(
+              "div",
+              { style: { maxHeight: "70vh", overflowY: "auto" } },
+              groupedAdminReservations.length === 0
+                ? h(
+                    "div",
+                    {
+                      style: {
+                        padding: "8px 6px",
+                        textAlign: "center",
+                        color: "#A9D9A7",
+                        fontSize: "12px",
+                      },
+                    },
+                    "該当する予約がありません"
+                  )
+                : groupedAdminReservations.map((group) => {
+                    // ★ この日の合計人数
+                    const groupTotalPeople = group.list.reduce(
+                      (sum, r) => sum + (r.peopleCount || 0),
+                      0
+                    );
+
+                    return h(
+                      "div",
+                      { key: group.date, style: { marginBottom: "14px" } },
+                      // 日付＋人数
+                      h(
+                        "div",
+                        {
+                          style: {
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: "#CFFFE1",
+                            borderLeft: "3px solid #3EF68A",
+                            paddingLeft: "8px",
+                            marginBottom: "4px",
+                          },
+                        },
+                        `${group.date}（合計 ${groupTotalPeople}名）`
+                      ),
+                      // テーブル
+                      h(
+                        "table",
+                        {
+                          style: {
+                            width: "100%",
+                            fontSize: "12px",
+                            borderCollapse: "collapse",
+                            backgroundColor: "rgba(2,21,14,0.9)",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                          },
+                        },
+                        [
+                          h(
+                            "thead",
+                            null,
+                            h(
+                              "tr",
+                              null,
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "時間"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "チーム名"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "名前"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "メール"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "right",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "人数"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "状態"
+                              ),
+                              h(
+                                "th",
+                                {
+                                  style: {
+                                    borderBottom: "1px solid #29593A",
+                                    padding: "4px 6px",
+                                    textAlign: "left",
+                                    color: "#A9D9A7",
+                                  },
+                                },
+                                "操作"
+                              )
+                            )
+                          ),
+                          h(
+                            "tbody",
+                            null,
+                            group.list.map((r, index) => {
+                              const rowBg = r.checkedIn
+                                ? "#062917"
+                                : index % 2 === 0
+                                ? "#02150e"
+                                : "transparent";
+
+                              return h(
+                                "tr",
+                                {
+                                  key: r.id,
+                                  style: { backgroundColor: rowBg },
+                                },
+                                h(
+                                  "td",
+                                  { style: { padding: "4px 6px" } },
+                                  r.session
+                                    ? `${r.time}（${r.session}）`
+                                    : r.time
+                                ),
+                                h(
+                                  "td",
+                                  {
+                                    style: {
+                                      padding: "4px 6px",
+                                      fontWeight: "bold",
+                                    },
+                                  },
+                                  r.team
+                                ),
+                                h(
+                                  "td",
+                                  { style: { padding: "4px 6px" } },
+                                  r.name
+                                ),
+                                h(
+                                  "td",
+                                  {
+                                    style: {
+                                      padding: "4px 6px",
+                                      maxWidth: "180px",
+                                      wordBreak: "break-all",
+                                    },
+                                  },
+                                  r.email
+                                ),
+                                h(
+                                  "td",
+                                  {
+                                    style: {
+                                      padding: "4px 6px",
+                                      textAlign: "right",
+                                      whiteSpace: "nowrap",
+                                    },
+                                  },
+                                  r.peopleCount
+                                    ? `${r.peopleCount}名`
+                                    : "-"
+                                ),
+                                h(
+                                  "td",
+                                  { style: { padding: "4px 6px" } },
+                                  r.checkedIn
+                                    ? h(
+                                        "span",
+                                        {
+                                          className:
+                                            "status-badge checked",
+                                        },
+                                        "チェックイン済"
+                                      )
+                                    : h(
+                                        "span",
+                                        { className: "status-badge" },
+                                        "未チェックイン"
+                                      )
+                                ),
+                                h(
+                                  "td",
+                                  {
+                                    style: {
+                                      padding: "4px 6px",
+                                      whiteSpace: "nowrap",
+                                    },
+                                  },
+                                  h(
+                                    "button",
+                                    {
+                                      className: "reserve-edit-button",
+                                      type: "button",
+                                      onClick: () =>
+                                        handleToggleCheckIn(
+                                          r.id,
+                                          r.checkedIn
+                                        ),
+                                      style: { marginRight: "6px" },
+                                    },
+                                    r.checkedIn ? "戻す" : "チェックイン"
+                                  ),
+                                  h(
+                                    "button",
+                                    {
+                                      className: "reserve-edit-button",
+                                      type: "button",
+                                      onClick: () =>
+                                        handleDeleteReservation(r.id),
+                                    },
+                                    "削除"
+                                  )
+                                )
+                              );
+                            })
+                          ),
+                        ]
+                      )
+                    );
+                  })
+            ),
+
+            h(
+              "button",
+              {
+                type: "button",
+                className: "login-back-button",
+                onClick: () => {
+                  window.location.href = "/";
+                },
+              },
+              "← カレンダーに戻る"
+            )
+          )
+        )
+      );
+    }
   } else {
     // カレンダー画面
     mainContent = h(

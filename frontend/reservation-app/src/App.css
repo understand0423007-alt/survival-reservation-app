@@ -971,3 +971,105 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* === ここからスマホ向けレイアウト調整 ====================== */
+@media (max-width: 768px) {
+  /* 画面全体の余白を少し詰める */
+  .app-root.app {
+    padding: 8px;
+  }
+
+  /* ヘッダー：タイトルとサブタイトルを縦並びに */
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  /* カレンダーと詳細パネルを縦並びに */
+  .calendar-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .calendar-panel,
+  .detail-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* カレンダーのマスを少しコンパクトに */
+  .days-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .day-cell {
+    padding: 4px 0;
+  }
+
+  /* スマホではマス内のチーム名タグは非表示にしてスッキリさせる */
+  .group-tags {
+    display: none;
+  }
+
+  /* 詳細パネルの高さ制限を解除（縦スクロールで見られるように） */
+  .detail-panel {
+    max-height: none;
+  }
+
+  /* ログイン/予約フォームのカードを画面幅いっぱいに */
+  .login-page {
+    padding: 8px 0;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 12px;
+  }
+
+  .login-input {
+    font-size: 14px;
+  }
+
+  /* ボタン類は横幅いっぱいでタップしやすく */
+  .login-button,
+  .reserve-button,
+  .signup-button,
+  .login-back-button,
+  .reserve-edit-button,
+  .reserve-confirm-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 管理者画面のテーブルは横スクロールできるように */
+  .login-card table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .login-card thead,
+  .login-card tbody {
+    width: 100%;
+  }
+
+  /* Google Map は少し高さを低めに */
+  .military-map-frame iframe {
+    height: 220px;
+  }
+
+  /* 背景画像はスマホではさらに薄く（文字を読みやすく） */
+  .bg-slide-image {
+    opacity: 0.1 !important;
+  }
+
+  /* 左上の MENU が他の要素に埋もれないように */
+  .floating-dropdown-wrapper {
+    z-index: 1000;
+  }
+}
+/* === ここまでスマホ向けレイアウト調整 ====================== */
